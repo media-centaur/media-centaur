@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
   describe "feature/1, visible?/2 and visible/2 (ADR-081)" do
     test "social belongs to the Social feature; the app's own subsystems belong to none" do
       assert HealthBoard.feature(:social) == :social
+      assert HealthBoard.feature(:acquisition) == :acquisition
       assert HealthBoard.feature(:library) == nil
       assert HealthBoard.feature(:system) == nil
     end
@@ -39,6 +40,11 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       assert Enum.map(board, & &1.component) == HealthBoard.board_subsystems()
 
       visible = HealthBoard.visible(board, MapSet.new())
+
+      assert Enum.map(visible, & &1.component) ==
+               HealthBoard.board_subsystems() -- [:social, :acquisition]
+
+      visible = HealthBoard.visible(board, MapSet.new([:acquisition]))
       assert Enum.map(visible, & &1.component) == HealthBoard.board_subsystems() -- [:social]
     end
   end

@@ -30,6 +30,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Acquisition.Readiness
   alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, TitleDownloadParams, WantSchedule}
   alias MediaCentaur.Acquisition.Plans.Claims
   alias MediaCentaur.IntegrationAvailability
@@ -40,15 +41,16 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Settings.Preferences.PlanningMode
 
   @doc """
-  One pass over every watching item's open wants. Inert unless Prowlarr
-  is configured **and** answering (`MediaCentaur.IntegrationAvailability`)
+  One pass over every watching item's open wants. Inert unless the
+  search and download feature is on and Prowlarr is configured
+  (`Readiness`) **and** answering (`MediaCentaur.IntegrationAvailability`)
   — wants accumulate and nothing is lost: the next tick plans the
   backlog, and Prowlarr's recovery runs one immediately rather than
   waiting for the next sweep (`Reactor.Handlers.prowlarr_available/0`).
   """
   @spec run_tick(DateTime.t()) :: :ok
   def run_tick(now \\ DateTime.utc_now(:second)) do
-    if IntegrationAvailability.available?(:prowlarr) do
+    if Readiness.ready?() and IntegrationAvailability.up?(:prowlarr) do
       settings = AutoGrabSettings.load()
 
       ReleaseTracking.list_open_wants()
@@ -68,7 +70,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   """
   @spec run_for(integer(), :movie | :tv_series, DateTime.t()) :: :ok
   def run_for(tmdb_id, media_type, now \\ DateTime.utc_now(:second)) do
-    with true <- IntegrationAvailability.available?(:prowlarr),
+    with true <- Readiness.ready?() and IntegrationAvailability.up?(:prowlarr),
          %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
       plan_item(item.id, ReleaseTracking.open_wants_for_item(item.id), AutoGrabSettings.load(), now)
     end

@@ -49,6 +49,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       rung: Map.fetch!(facts, :rung),
       tracking: Map.get(facts, :tracking),
       acquisition?: Map.get(facts, :acquisition?, false),
+      downloads?: Map.get(facts, :downloads?, true),
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
       settled?: Map.get(facts, :settled?, false),
       number_of_seasons: Map.get(facts, :number_of_seasons),

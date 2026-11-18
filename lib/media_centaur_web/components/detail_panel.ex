@@ -719,6 +719,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             release_ahead?={TitleLogic.release_ahead?(@detail, @today)}
             approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
             acquisition?={@detail.acquisition?}
+            auto_grab?={@detail.downloads?}
           />
           <%!-- An owned title carries the acceptance behind the cog and
                 nowhere else; this card is the unowned title's. --%>

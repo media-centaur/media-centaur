@@ -174,6 +174,10 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     default: false,
     doc: "the state line opens the caught-up panel (`WatchlistLive.Logic.panel_offered?/1`)"
 
+  attr :auto_grab?, :boolean,
+    default: true,
+    doc: "the search and download feature is on (ADR-081); off, the menu does not offer Auto-grab"
+
   def watchlist_row(assigns) do
     rows = assigns.item.social_activity
     ref = TitleRef.param(assigns.item.ref)
@@ -187,7 +191,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
         sentences: SocialWords.sentences(rows),
         line: line,
         detail: detail,
-        choices: choices(assigns.item)
+        choices: choices(assigns.item, assigns.auto_grab?)
       )
 
     ~H"""
@@ -356,18 +360,26 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
   The rung menu's items for a row, `{choice, label}` in order: the three
   list rungs by their state words, then Ignore (not for an owned title)
   and Remove; an Ignored row offers On your list and Stop ignoring. The
-  choice is the word `set_rung` takes.
+  choice is the word `set_rung` takes. While the search and download
+  feature is off (`auto_grab?` false) Auto-grab is not among the rungs,
+  except on a row already at it.
   """
-  @spec choices(Item.t()) :: [{String.t(), String.t()}]
-  def choices(%Item{rung: nil}),
-    do: for(rung <- [:list, :follow, :grab], do: {Atom.to_string(rung), Logic.rung_word(rung)})
+  @spec choices(Item.t(), boolean()) :: [{String.t(), String.t()}]
+  def choices(item, auto_grab? \\ true)
 
-  def choices(%Item{rung: :ignored}),
+  def choices(%Item{rung: nil} = item, auto_grab?), do: rung_choices(item, auto_grab?)
+
+  def choices(%Item{rung: :ignored}, _auto_grab?),
     do: [{"list", Logic.rung_word(:list)}, {"off", TrackingControls.unignore_label()}]
 
-  def choices(%Item{owned?: owned?}) do
-    rungs = for rung <- [:list, :follow, :grab], do: {Atom.to_string(rung), Logic.rung_word(rung)}
+  def choices(%Item{owned?: owned?} = item, auto_grab?) do
     ignore = if owned?, do: [], else: [{"ignored", TrackingControls.ignore_label()}]
-    rungs ++ ignore ++ [{"off", "Remove"}]
+    rung_choices(item, auto_grab?) ++ ignore ++ [{"off", "Remove"}]
+  end
+
+  defp rung_choices(%Item{rung: current}, auto_grab?) do
+    for rung <- [:list, :follow, :grab], rung != :grab or auto_grab? or current == :grab do
+      {Atom.to_string(rung), Logic.rung_word(rung)}
+    end
   end
 end

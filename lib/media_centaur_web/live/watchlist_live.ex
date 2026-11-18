@@ -552,6 +552,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
                   today={@today}
                   caught_up?={Logic.caught_up_offered?(item)}
                   point_panel?={Logic.panel_offered?(item)}
+                  auto_grab?={:acquisition in @features}
                 />
               </div>
             </Disclosure.disclosure>
@@ -573,6 +574,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
                   today={@today}
                   caught_up?={Logic.caught_up_offered?(item)}
                   point_panel?={Logic.panel_offered?(item)}
+                  auto_grab?={:acquisition in @features}
                 />
               </div>
             </section>

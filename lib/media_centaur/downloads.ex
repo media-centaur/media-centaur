@@ -1,6 +1,11 @@
 defmodule MediaCentaur.Downloads do
   use Boundary,
-    deps: [MediaCentaur.Capabilities, MediaCentaur.ErrorReports, MediaCentaur.HttpClient],
+    deps: [
+      MediaCentaur.Capabilities,
+      MediaCentaur.Features,
+      MediaCentaur.ErrorReports,
+      MediaCentaur.HttpClient
+    ],
     exports: [
       ClientConfig,
       DownloadClient,

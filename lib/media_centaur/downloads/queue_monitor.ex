@@ -91,6 +91,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Features
   alias MediaCentaur.Downloads.Connectivity
   alias MediaCentaur.Downloads.DownloadClient.Dispatcher
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
@@ -232,7 +233,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   @impl GenServer
   def handle_info({:poll, generation}, %{poll_generation: generation} = state) do
-    ready? = Capabilities.download_client_ready?()
+    ready? = polling?()
     state = if ready?, do: poll_and_broadcast(state), else: state
 
     delay = cadence_ms(map_size(state.subscribers), ready?, state.queue.connectivity)
@@ -249,7 +250,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   @impl GenServer
   def handle_cast(:poll_now, state) do
-    state = if Capabilities.download_client_ready?(), do: poll_and_broadcast(state), else: state
+    state = if polling?(), do: poll_and_broadcast(state), else: state
     {:noreply, state}
   end
 
@@ -266,11 +267,16 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
     end
   end
 
+  # Whether there is a client to ask: the search and download feature on
+  # (ADR-081) and a download client configured and tested. Off, the
+  # monitor stays up and asks nobody.
+  defp polling?, do: Capabilities.download_client_ready?() and Features.enabled?(:acquisition)
+
   # The pending tick was scheduled at the idle cadence (up to 30 s out).
   # Someone is watching now: poll immediately and restart the cycle at
   # the watched cadence; the generation bump retires the pending timer.
   defp poll_for_first_watcher(state) do
-    if Capabilities.download_client_ready?() do
+    if polling?() do
       state = poll_and_broadcast(state)
       delay = cadence_ms(map_size(state.subscribers), true, state.queue.connectivity)
       schedule_poll(state, delay)

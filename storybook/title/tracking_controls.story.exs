@@ -86,6 +86,18 @@ defmodule MediaCentaurWeb.Storybook.Title.TrackingControls do
           "No indexer or download client yet: the rows stay, and the note says auto-grab " <>
             "downloads nothing until one is set up.",
         attributes: base(%{rung: :grab, acquisition?: false})
+      },
+      %Variation{
+        id: :search_and_download_off,
+        description: "The search and download feature is off: Auto-grab is not offered.",
+        attributes: base(%{rung: :follow, acquisition?: false, auto_grab?: false})
+      },
+      %Variation{
+        id: :search_and_download_off_at_grab,
+        description:
+          "The feature is off and the title is already at Auto-grab: the row stays so it can be " <>
+            "stepped down, and the note says why nothing downloads.",
+        attributes: base(%{rung: :grab, acquisition?: false, auto_grab?: false})
       }
     ]
   end

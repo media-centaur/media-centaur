@@ -88,7 +88,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Acquisition.CancelReasons
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Capabilities
+  alias MediaCentaur.Acquisition.Readiness
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.IntegrationAvailability
 
@@ -193,8 +193,12 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   defp pursue(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
     cond do
-      not Capabilities.prowlarr_ready?() ->
-        Log.info(:acquisition, "acquisition waiting — #{target.title} (Prowlarr is not configured)")
+      not Readiness.ready?() ->
+        Log.info(
+          :acquisition,
+          "acquisition waiting — #{target.title} (search and download is off, or Prowlarr is not configured)"
+        )
+
         {:snooze, @unconfigured_snooze_seconds}
 
       not IntegrationAvailability.up?(:prowlarr) ->

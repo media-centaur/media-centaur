@@ -15,6 +15,10 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
   attr :image_pipeline_running, :boolean, required: true
   attr :acquisition_running, :boolean, required: true
 
+  attr :auto_grab?, :boolean,
+    default: true,
+    doc: "the search and download feature is on (ADR-081); off, the Auto-grab row is not listed"
+
   def render(assigns) do
     ~H"""
     <.settings_card title="Background services" data-nav-grid>
@@ -38,6 +42,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
           event="toggle_image_pipeline"
         />
         <.settings_row
+          :if={@auto_grab?}
           label="Auto-grab"
           description="Search and grab releases as tracked episodes air"
           checked={@acquisition_running}

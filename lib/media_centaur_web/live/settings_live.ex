@@ -178,6 +178,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       id: "acquisition",
       label: "Acquisition",
       group: :media,
+      feature: :acquisition,
       description:
         "Where releases are searched for and downloaded, and what happens when a tracked title's release appears."
     },
@@ -2356,6 +2357,7 @@ defmodule MediaCentaurWeb.SettingsLive do
           acquisition_running: assigns.acquisition_running,
           prowlarr_test: test_info(assigns.connections[:prowlarr]),
           download_client_test: test_info(assigns.connections[:download_client]),
+          acquisition?: :acquisition in assigns.features,
           config: assigns.config
         })
       end
@@ -2400,6 +2402,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       pipeline_running={@pipeline_running}
       image_pipeline_running={@image_pipeline_running}
       acquisition_running={@acquisition_running}
+      auto_grab?={:acquisition in @features}
     />
     """
   end

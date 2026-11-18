@@ -30,10 +30,6 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
   attr :session, SearchSession, required: true
   attr :any_loading?, :boolean, required: true
 
-  attr :media_search?, :boolean,
-    required: true,
-    doc: "Whether the Search page is on — the note that points to its media search shows only then."
-
   def search_box(assigns) do
     ~H"""
     <%!-- The field floats on the page as its front door, centred (on a
@@ -117,7 +113,6 @@ defmodule MediaCentaurWeb.DownloadsLive.Search do
       <%!-- The note (UIDR-060): release search finds files, media search
             finds titles, and most of the time the title is what is wanted. --%>
       <p
-        :if={@media_search?}
         id="release-search-note"
         class="text-center text-xs text-base-content/55"
       >

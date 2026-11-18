@@ -497,7 +497,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     ref = Title.ref(title)
     library = Map.get_lazy(given, :library, fn -> LibraryHalf.load(socket.assigns.profile.id, ref) end)
     artwork = TitleArtwork.urls(title, library_images(library), :w92)
-    acquisition? = Capabilities.acquisition_ready?()
+    downloads? = downloads?(socket)
+    acquisition? = downloads? and Capabilities.acquisition_ready?()
     planning_mode = PlanningMode.value()
     today = socket.assigns.today
 
@@ -508,7 +509,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       lower_quality_accepted?:
         DownloadParams.lower_quality_accepted?(TitleDownloadParams.get(title.tmdb_id, title.media_type)),
       acquisition_state: Map.get(TitleStates.for_refs([ref]), ref),
-      release_mode_available: Capabilities.prowlarr_ready?(),
+      release_mode_available: downloads? and Capabilities.prowlarr_ready?(),
       poster_url: artwork.poster_url,
       backdrop_url: artwork.backdrop_url,
       logo_url: artwork.logo_url,
@@ -519,6 +520,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
           approval_policy: PlanningMode.approval_policy(planning_mode)
         }),
       acquisition?: acquisition?,
+      downloads?: downloads?,
       release_window: nil,
       planning_mode: planning_mode,
       social_activity: Map.get(Activities.activity_for([ref]), ref, []),
@@ -571,13 +573,18 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # The residue: an owned entity with no TMDB identity has the library
   # half as its one fact.
-  defp build_residue(_socket, library) do
+  # Whether the search and download feature is on (ADR-081): off, a title
+  # has no Download control and Auto-grab is not offered.
+  defp downloads?(socket), do: :acquisition in socket.assigns.features
+
+  defp build_residue(socket, library) do
     Logic.title_detail(nil, %{
       library: library,
       rung: nil,
       acquisition_state: nil,
       release_mode_available: false,
-      acquisition?: Capabilities.acquisition_ready?(),
+      acquisition?: downloads?(socket) and Capabilities.acquisition_ready?(),
+      downloads?: downloads?(socket),
       planning_mode: PlanningMode.value()
     })
   end

@@ -92,6 +92,19 @@ defmodule MediaCentaurWeb.Live.SettingsLive.OverviewTest do
     end
   end
 
+  describe "search and download off (ADR-081)" do
+    test "Auto-grab, Prowlarr and the download client are not listed" do
+      groups =
+        Overview.build(input(%{acquisition?: false, config: %{prowlarr_api_key_configured?: false}}))
+
+      assert find_item(groups, :acquisition) == nil
+      assert find_item(groups, :prowlarr) == nil
+      assert find_item(groups, :download_client) == nil
+      assert find_item(groups, :tmdb)
+      assert find_item(groups, :watchers)
+    end
+  end
+
   describe "Configuration group" do
     test "TMDB not configured → :error with actionable detail" do
       groups = Overview.build(input(%{config: %{tmdb_api_key_configured?: false}}))

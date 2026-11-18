@@ -37,7 +37,7 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{CancelReasons, InfoHash, Target, TargetEvents, Targets}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
-  alias MediaCentaur.Capabilities
+  alias MediaCentaur.Acquisition.Readiness
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Repo
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
 
   defp grab(target, release) do
     cond do
-      not Capabilities.prowlarr_ready?() -> {:snooze, @unconfigured_snooze_seconds}
+      not Readiness.ready?() -> {:snooze, @unconfigured_snooze_seconds}
       not IntegrationAvailability.up?(:prowlarr) -> {:snooze, ProbeJob.cadence_seconds()}
       handoff_down?(release) -> hold(target)
       true -> hand_off(target, release)

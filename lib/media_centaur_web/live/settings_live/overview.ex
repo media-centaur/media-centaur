@@ -88,14 +88,20 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
     %{
       id: :services,
       label: "Services",
-      items: [
-        service_item(:watchers, "File watching", input.watchers_running),
-        service_item(:pipeline, "Media import", input.pipeline_running),
-        service_item(:image_pipeline, "Artwork downloads", input.image_pipeline_running),
-        service_item(:acquisition, "Auto-grab", input.acquisition_running)
-      ]
+      items:
+        [
+          service_item(:watchers, "File watching", input.watchers_running),
+          service_item(:pipeline, "Media import", input.pipeline_running),
+          service_item(:image_pipeline, "Artwork downloads", input.image_pipeline_running)
+        ] ++
+          acquisition_only(input, [service_item(:acquisition, "Auto-grab", input.acquisition_running)])
     }
   end
+
+  # The search and download feature's rows (ADR-081): Auto-grab, Prowlarr
+  # and the download client are listed while the feature is on. Off, a
+  # missing indexer is not a problem to report.
+  defp acquisition_only(input, items), do: if(Map.get(input, :acquisition?, true), do: items, else: [])
 
   defp service_item(id, label, true) do
     %{id: id, label: label, detail: "Running", status: :ok, link: section_link("services")}
@@ -119,12 +125,12 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
     %{
       id: :integrations,
       label: "Integrations",
-      items: [
-        tmdb_item(config),
-        prowlarr_item(config, input[:prowlarr_test]),
-        download_client_item(config, input[:download_client_test]),
-        mpv_item(config)
-      ]
+      items:
+        [tmdb_item(config)] ++
+          acquisition_only(input, [
+            prowlarr_item(config, input[:prowlarr_test]),
+            download_client_item(config, input[:download_client_test])
+          ]) ++ [mpv_item(config)]
     }
   end
 

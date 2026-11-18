@@ -218,6 +218,17 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       assert {:snooze, 3600} = run_plan_job(plan.id)
     end
+
+    test "search and download off waits the same way, and the plan is kept (ADR-081)" do
+      stub_recording_searches(%{})
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      MediaCentaur.JobRuns.run_enqueued_jobs()
+
+      MediaCentaur.Features.set(:acquisition, false)
+
+      assert {:snooze, 3600} = run_plan_job(plan.id)
+      assert {:ok, %{}} = Plans.fetch(plan.id)
+    end
   end
 
   describe "residual-driven search" do

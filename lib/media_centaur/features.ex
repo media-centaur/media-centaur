@@ -127,7 +127,7 @@ defmodule MediaCentaur.Features do
   def enabled?(id) when id in @ids do
     feature = get(id)
 
-    (key(id) |> Settings.get_by_key() |> flag(feature.default)) and
+    key(id) |> Settings.get_by_key() |> flag(feature.default) and
       (feature.requires == nil or enabled?(feature.requires))
   end
 
@@ -142,7 +142,9 @@ defmodule MediaCentaur.Features do
 
   defp on?(nil, _flagged), do: false
   defp on?(%Feature{id: id, requires: nil}, flagged), do: id in flagged
-  defp on?(%Feature{id: id, requires: requires}, flagged), do: id in flagged and on?(get(requires), flagged)
+
+  defp on?(%Feature{id: id, requires: requires}, flagged),
+    do: id in flagged and on?(get(requires), flagged)
 
   @doc """
   The features a reader can switch, given the enabled set: every feature

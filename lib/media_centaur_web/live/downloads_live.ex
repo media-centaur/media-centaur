@@ -106,6 +106,8 @@ defmodule MediaCentaurWeb.DownloadsLive do
   }
 
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Features
+  alias MediaCentaurWeb.Components.FeatureOff
 
   alias MediaCentaurWeb.DownloadsLive.{
     HistoryLogic,
@@ -161,7 +163,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
     # `View.build/1`. Acquisition topics are subscribed only when there's
     # an indexer to hear from (re-checked in `:capabilities_changed` for
     # mid-session setup).
-    prowlarr? = Capabilities.prowlarr_ready?()
+    prowlarr? = acquiring?(socket)
 
     socket =
       [IntegrationAvailability]
@@ -260,13 +262,18 @@ defmodule MediaCentaurWeb.DownloadsLive do
   defp maybe_start_storage(socket) do
     # Storage headroom answers "do I have room for this grab?" — without an
     # indexer nothing grabs, so the page without one skips the df loop.
-    if connected?(socket) and Capabilities.prowlarr_ready?() do
+    if connected?(socket) and acquiring?(socket) do
       Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
       start_async_storage(socket)
     else
       socket
     end
   end
+
+  # Whether the page has anything to read: the feature on (ADR-081) and
+  # an indexer ready. Off, the page is the feature's off state and reads
+  # nothing, as it reads nothing without Prowlarr.
+  defp acquiring?(socket), do: :acquisition in socket.assigns.features and Capabilities.prowlarr_ready?()
 
   defp start_async_storage(socket) do
     socket
@@ -290,7 +297,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
   # the empty mount defaults are already the honest state, and `View.build/1`
   # keeps the operational sections empty regardless.
   defp load_acquisition(socket) do
-    if Capabilities.prowlarr_ready?() do
+    if acquiring?(socket) do
       session = SearchSession.current()
 
       load_history(
@@ -322,7 +329,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
       View.build(%{
         pursuit_rows: socket.assigns.pursuit_rows,
         drafts: socket.assigns.plan_drafts,
-        prowlarr_ready?: Capabilities.prowlarr_ready?()
+        prowlarr_ready?: acquiring?(socket)
       })
 
     assign(socket, view: view)
@@ -628,10 +635,16 @@ defmodule MediaCentaurWeb.DownloadsLive do
           finished_id={@finished_id}
         />
       </:overlays>
+      <FeatureOff.feature_off
+        :if={:acquisition not in @features}
+        id="downloads-off"
+        feature={Features.get(:acquisition)}
+      />
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
             (like `library`/`home`), not a context within it — the nav graph
             is built from this value. --%>
       <div
+        :if={:acquisition in @features}
         class="relative"
         data-page-behavior="downloads"
         data-nav-default-zone="downloads"
@@ -706,7 +719,6 @@ defmodule MediaCentaurWeb.DownloadsLive do
             :if={@prowlarr_ready && @zone == :release_search}
             session={@search_session}
             any_loading?={@any_loading?}
-            media_search?={:acquisition in @features}
           />
 
           <%!-- The search answers flat, in its tab (UIDR-014, UIDR-060): the
@@ -849,9 +861,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
             class="py-10 text-center text-sm text-base-content/55"
           >
             Nothing in flight — approved plans and their downloads appear here.
-            <span :if={:acquisition in @features}>
-              Find something to watch on <.link navigate={~p"/search"} class="link link-primary">Search</.link>.
-            </span>
+            Find something to watch on <.link navigate={~p"/search"} class="link link-primary">Search</.link>.
           </p>
         </div>
       </div>
@@ -1188,7 +1198,7 @@ defmodule MediaCentaurWeb.DownloadsLive do
 
   @impl true
   def handle_info(:capabilities_changed, socket) do
-    prowlarr? = Capabilities.prowlarr_ready?()
+    prowlarr? = acquiring?(socket)
 
     socket =
       cond do

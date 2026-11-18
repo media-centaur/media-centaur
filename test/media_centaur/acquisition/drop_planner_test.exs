@@ -165,6 +165,20 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert Enum.all?(open_wants, & &1.last_searched_at)
     end
 
+    test "search and download off: wants wait and nothing is planned (ADR-081)" do
+      stub_results(%{})
+      item = create_tracked_show(%{})
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      MediaCentaur.Features.set(:acquisition, false)
+      tick_and_gate()
+
+      assert Repo.all(Plans.Plan) == []
+      assert Repo.all(Pursuit) == []
+      assert ReleaseTracking.open_wants_for_item(item.id) != []
+    end
+
     test "a movie want becomes a single-unit tracking movie plan keyed by the part id" do
       year = @last_month.year
 

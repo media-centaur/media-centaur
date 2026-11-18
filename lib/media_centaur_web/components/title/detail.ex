@@ -24,7 +24,10 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   title that has never been tracked. `acquisition?` and
   `release_window` are what the tracking controls need: whether a grab
   can fire, and where a movie stands in its release sequence — nil
-  until the live preview lands, and for a series. `settled?` is whether the TMDB store holds the title as
+  until the live preview lands, and for a series. `downloads?` is whether
+  the search and download feature is on (ADR-081): off, `acquisition?`
+  and `release_mode_available` are false and Auto-grab is not offered.
+  `settled?` is whether the TMDB store holds the title as
   settled (`TMDB.Schedule`): for a series, ended or canceled with no air
   date ahead. The rows derive their rule from these at the mount
   (`Logic.release_ahead?/2`). `number_of_seasons` is the stored series'
@@ -71,6 +74,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
     :preview,
     release_mode_available: false,
     acquisition?: false,
+    downloads?: true,
     lower_quality_accepted?: false,
     settled?: false,
     number_of_seasons: nil,
@@ -92,6 +96,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
           rung: MediaCentaur.Watchlist.TitleIntent.rung() | nil,
           tracking: TrackingDetail.t() | nil,
           acquisition?: boolean(),
+          downloads?: boolean(),
           lower_quality_accepted?: boolean(),
           settled?: boolean(),
           number_of_seasons: non_neg_integer() | nil,

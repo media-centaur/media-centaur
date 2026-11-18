@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Downloads.QueueMonitorTest do
-  use MediaCentaur.Case, async: false
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Downloads.{QueueMonitor, QueueState}
@@ -125,6 +125,42 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
       assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
       # …followed by a broadcast from the immediate poll (well under any cadence).
       assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+    end
+  end
+
+  describe "search and download off (ADR-081)" do
+    test "the monitor asks no client" do
+      DownloadClientStubs.setup_qbittorrent_client()
+
+      :persistent_term.put({Capabilities, :ready_flags}, %{
+        tmdb: false,
+        prowlarr: false,
+        torrent_client: true,
+        usenet_client: false,
+        download_client: true,
+        acquisition: false
+      })
+
+      test_pid = self()
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        send(test_pid, :client_asked)
+
+        Req.Test.json(conn, %{
+          "rid" => 1,
+          "full_update" => true,
+          "torrents" => %{},
+          "server_state" => %{}
+        })
+      end)
+
+      MediaCentaur.Features.set(:acquisition, false)
+      start_supervised!(QueueMonitor)
+      QueueMonitor.poll_now()
+      QueueMonitor.register_subscriber(self())
+
+      assert_receive {:queue_state, %QueueState{}}, 1000
+      refute_received :client_asked
     end
   end
 

@@ -2132,14 +2132,26 @@ defmodule MediaCentaurWeb.DownloadsLiveTest do
       assert has_element?(view, "[data-nav-transient-params*='zone']")
     end
 
-    test "an empty Activity points to Search while the feature is on", %{conn: conn} do
+    test "an empty Activity points to Search", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/downloads")
       assert has_element?(view, "[data-component='zone-empty'] a[href='/search']", "Search")
+    end
 
-      MediaCentaur.Features.set(:discovery, false)
-      {:ok, view, _html} = live_async!(conn, ~p"/downloads")
-      assert has_element?(view, "[data-component='zone-empty']", "Nothing in flight")
-      refute has_element?(view, "[data-component='zone-empty'] a")
+    test "search and download off: no sidebar entry, and the page is its off state with Turn on",
+         %{conn: conn} do
+      MediaCentaur.Features.set(:acquisition, false)
+
+      {:ok, view, html} = live_async!(conn, ~p"/downloads?zone=release-search")
+
+      refute has_element?(view, "#sidebar-downloads")
+      refute has_element?(view, "#sidebar-search")
+      assert has_element?(view, "#downloads-off")
+      assert html =~ "Search and download is off"
+      refute has_element?(view, "[data-nav-zone='zone-tabs']")
+      refute has_element?(view, "#release-search-note")
+
+      view |> element("#downloads-off-turn-on") |> render_click()
+      assert MediaCentaur.Features.enabled?(:acquisition)
     end
 
     test "empty Activity and History tabs say so instead of rendering a void", %{conn: conn} do

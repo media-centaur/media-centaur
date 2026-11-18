@@ -89,6 +89,19 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
       assert Enum.any?(old_events, &(&1.kind == "pursuit_exhausted"))
     end
 
+    test "search and download off: the tick judges nothing (ADR-081)" do
+      old_pursuit =
+        insert_pursuit(%{
+          attempt_count: 4,
+          inserted_at: DateTime.add(DateTime.utc_now(:second), -7, :day)
+        })
+
+      MediaCentaur.Features.set(:acquisition, false)
+
+      assert :ok = Watcher.perform(%Oban.Job{args: %{}})
+      assert Repo.get!(Pursuit, old_pursuit.id).state == "active"
+    end
+
     test "skips terminal-state pursuits entirely" do
       pursuit = insert_pursuit(%{attempt_count: 4})
 

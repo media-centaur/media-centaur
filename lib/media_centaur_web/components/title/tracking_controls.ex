@@ -71,6 +71,11 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
     required: true,
     doc: "an indexer and a download client are ready; without them auto-grab downloads nothing"
 
+  attr :auto_grab?, :boolean,
+    default: true,
+    doc:
+      "the search and download feature is on (ADR-081); off, Auto-grab is not offered — a title already at it keeps the row so it can be stepped down"
+
   attr :class, :string, default: nil
 
   def tracking_controls(assigns) do
@@ -141,7 +146,11 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
         id={"#{@id}-acquisition-note"}
         class="text-xs text-base-content/55"
       >
-        Auto-grab downloads nothing until an indexer and a download client are set up under Settings → Acquisition.
+        <%= if @auto_grab? do %>
+          Auto-grab downloads nothing until an indexer and a download client are set up under Settings → Acquisition.
+        <% else %>
+          Auto-grab downloads nothing while Search and download is off under Settings → Feature Flags.
+        <% end %>
       </p>
     </div>
     """
@@ -201,15 +210,21 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   Which switches a listed title gets. A movie that is out has nothing
   left to be told about: Auto-grab only — which keeps searching until a
   release exists, unlike the Download button. A movie with a release
-  ahead, and any series: both.
+  ahead, and any series: both. While the search and download feature is
+  off (`auto_grab?: false`) Auto-grab is not offered, except to a title
+  already at it, which keeps the row so it can be stepped down.
   """
   @spec rows(%{
           required(:media_type) => Title.media_type(),
           required(:release_ahead?) => boolean(),
           optional(atom()) => term()
         }) :: [:track | :grab]
-  def rows(%{media_type: :movie, release_ahead?: false}), do: [:grab]
-  def rows(_movie_ahead_or_series), do: [:track, :grab]
+  def rows(%{media_type: :movie, release_ahead?: false} = title), do: grab_row(title)
+  def rows(movie_ahead_or_series), do: [:track | grab_row(movie_ahead_or_series)]
+
+  defp grab_row(title) do
+    if Map.get(title, :auto_grab?, true) or Map.get(title, :rung) == :grab, do: [:grab], else: []
+  end
 
   @doc """
   What the Track switch sets: Follow from Off, Ignored or List, List from

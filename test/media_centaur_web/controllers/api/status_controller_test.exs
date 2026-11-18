@@ -36,6 +36,15 @@ defmodule MediaCentaurWeb.Api.StatusControllerTest do
              } = body["capabilities"]
     end
 
+    test "search and download off takes the API with it: it requires that feature", %{
+      conn: conn,
+      key: key
+    } do
+      Features.set(:acquisition, false)
+
+      assert conn |> authorized(key) |> get("/api/v1/status") |> json_response(404) == @not_found
+    end
+
     test "loopback has no exemption: no key is 401", %{conn: conn} do
       assert %{"error" => %{"code" => "unauthorized"}} =
                conn |> get("/api/v1/status") |> json_response(401)

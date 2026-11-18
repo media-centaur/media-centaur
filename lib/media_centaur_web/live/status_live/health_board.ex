@@ -95,7 +95,8 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   # this map is the app's own and always shows; one whose feature is off
   # leaves the board, and its drill-in is the feature's off state.
   @feature %{
-    social: :social
+    social: :social,
+    acquisition: :acquisition
   }
 
   # The one action that takes a dormant subsystem out of dormancy. Named for

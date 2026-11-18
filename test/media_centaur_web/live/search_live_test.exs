@@ -46,7 +46,9 @@ defmodule MediaCentaurWeb.SearchLiveTest do
       assert html =~ "Search and download"
       assert html =~ "New releases"
 
-      refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(MediaCentaur.Features.get(:acquisition)) =~
+      refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(
+               MediaCentaur.Features.get(:acquisition)
+             ) =~
                "In development."
     end
   end
@@ -231,15 +233,14 @@ defmodule MediaCentaurWeb.SearchLiveTest do
       :ok
     end
 
-    test "the page keeps its search field and draws no New Releases shelf or hero", %{conn: conn} do
+    test "the page keeps its search field and shows no new release", %{conn: conn} do
       store_movie(901, "Movie A")
       :ok = NewReleases.replace([digital(901)])
 
       {:ok, view, html} = live(conn, "/search")
 
       assert has_element?(view, "#omnibox-media-input")
-      refute has_element?(view, "[data-row='new-releases']")
-      refute has_element?(view, "[data-nav-zone='hero']")
+      refute html =~ "New Releases"
       refute html =~ "Movie A"
     end
 

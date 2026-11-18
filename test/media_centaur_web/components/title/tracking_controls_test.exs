@@ -30,6 +30,34 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
     end
   end
 
+  describe "rows/1 — while search and download is off (ADR-081)" do
+    test "Auto-grab is not offered" do
+      assert TrackingControls.rows(%{
+               media_type: :movie,
+               release_ahead?: false,
+               auto_grab?: false,
+               rung: :list
+             }) ==
+               []
+
+      assert TrackingControls.rows(%{
+               media_type: :tv_series,
+               release_ahead?: true,
+               auto_grab?: false,
+               rung: :follow
+             }) == [:track]
+    end
+
+    test "a title already at Auto-grab keeps the row, so it can be stepped down" do
+      assert TrackingControls.rows(%{
+               media_type: :tv_series,
+               release_ahead?: true,
+               auto_grab?: false,
+               rung: :grab
+             }) == [:track, :grab]
+    end
+  end
+
   describe "the rung each row sets" do
     test "Track: Follow when off, List when on, nothing while auto-grab holds it on" do
       assert TrackingControls.track_choice(:list) == "follow"

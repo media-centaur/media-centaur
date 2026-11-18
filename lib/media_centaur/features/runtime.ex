@@ -59,7 +59,9 @@ defmodule MediaCentaur.Features.Runtime do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
-  defp feature_flag_change?({:setting_changed, key, _value}) when is_binary(key), do: Features.feature_key?(key)
+  defp feature_flag_change?({:setting_changed, key, _value}) when is_binary(key),
+    do: Features.feature_key?(key)
+
   defp feature_flag_change?(_message), do: false
 
   @doc "Re-reads every feature's flag and starts or stops its runtime to match."

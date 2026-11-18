@@ -81,7 +81,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
   alias MediaCentaur.Acquisition.Jobs.GatePlan
   alias MediaCentaur.Acquisition.Plans.{Gate, MatchCriteria, Plan, PlanUnit, SearchOrder}
-  alias MediaCentaur.Capabilities
+  alias MediaCentaur.Acquisition.Readiness
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Assessment, CourQueries, Quality, ReleaseCoverage}
@@ -92,7 +92,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"plan_id" => plan_id} = args}) do
     cond do
-      not Capabilities.prowlarr_ready?() ->
+      not Readiness.ready?() ->
         {:snooze, @unconfigured_snooze_seconds}
 
       not IntegrationAvailability.up?(:prowlarr) ->
