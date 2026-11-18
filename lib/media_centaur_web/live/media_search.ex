@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Live.MediaSearch do
   The media search a page hosts (UIDR-014, amended 2026-11-01): the
   omnibox's TMDB title search, "What do you want to watch?", whose
   results answer flat in the page as `Title.Row`s that open the title
-  detail. One trait for the page that carries the box, Discovery (the
+  detail. One trait for the page that carries the box, Search (the
   *choose* stage, UIDR-057; Incoming hosted it too until the campaign's
   cutover), so the search stays one implementation whoever hosts it.
 

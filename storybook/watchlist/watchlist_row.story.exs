@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.Storybook.Watchlist.Row do
       %Variation{
         id: :ignored,
         description:
-          "An Ignored record: hidden from the Feed and Discovery, no poster (it references nothing in the store); the menu offers On your list and Stop ignoring.",
+          "An Ignored record: hidden from the Feed and Search, no poster (it references nothing in the store); the menu offers On your list and Stop ignoring.",
         attributes: %{
           today: @today,
           item: item("row-ignored", movie(), :ignored, state: %State{kind: :ignored})

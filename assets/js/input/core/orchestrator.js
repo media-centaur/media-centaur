@@ -241,7 +241,7 @@ export class Orchestrator {
     }
 
     // Focus already rests on a nav item the cursor did not put there — a
-    // click into Discovery's search box while the cursor sat on the hero,
+    // click into the Search page's search box while the cursor sat on the hero,
     // which the results then replace. The cursor joins that item instead of
     // taking focus from it for the cursor start.
     const holding = this._contextHoldingFocus()

@@ -50,11 +50,11 @@ defmodule MediaCentaurWeb.Storybook.Navigation.SidebarLink do
           %Variation{
             id: :named,
             attributes: %{
-              id: "rail-discovery",
-              navigate: "/discovery",
-              label: "Discovery",
-              icon: "hero-sparkles",
-              compact: "Discovery"
+              id: "rail-search",
+              navigate: "/search",
+              label: "Search",
+              icon: "hero-magnifying-glass",
+              compact: "Search"
             }
           }
         ]

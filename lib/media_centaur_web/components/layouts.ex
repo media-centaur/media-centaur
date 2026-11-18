@@ -142,16 +142,16 @@ defmodule MediaCentaurWeb.Layouts do
             active={current?(@current_path, "/library")}
             remember
           />
-          <%!-- Discovery: the titles you do not own yet (UIDR-057); an
+          <%!-- Search: the titles you do not own yet (UIDR-057); an
                 optional feature, on by default (ADR-081). --%>
           <SidebarLink.sidebar_link
             :if={:discovery in @features}
-            id="sidebar-discovery"
-            navigate="/discovery"
-            label="Discovery"
-            icon="hero-sparkles"
-            compact="Discovery"
-            active={current?(@current_path, "/discovery")}
+            id="sidebar-search"
+            navigate="/search"
+            label="Search"
+            icon="hero-magnifying-glass"
+            compact="Search"
+            active={current?(@current_path, "/search")}
             remember
           />
           <%!-- Watchlist: the inventory of every title intent, managed in

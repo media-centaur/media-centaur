@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Storybook.Composites.ShelfHead do
   @moduledoc """
-  The line above a shelf on Home and Discovery: the title, and *See all*
+  The line above a shelf on Home and Search: the title, and *See all*
   when the shelf has a page of its own.
   """
   use PhoenixStorybook.Story, :component

@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.TitleStates do
   @moduledoc """
   The acquisition state of a TMDB title, for surfaces that list titles
-  the library does not own yet (Discovery's tiles, search rows and the
+  the library does not own yet (the Search page's tiles, search rows and the
   title detail modal; spec 2026-09-05 §20):
 
   * `:downloading` — a pursuit for the title is in flight

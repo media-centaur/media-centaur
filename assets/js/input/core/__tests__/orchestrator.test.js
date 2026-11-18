@@ -751,7 +751,7 @@ describe("Orchestrator", () => {
     })
 
     test("a newly empty context yields to the nav item the pointer focused", () => {
-      // Discovery: a click puts focus in the search box while the cursor
+      // Search: a click puts focus in the search box while the cursor
       // sits on the hero; the results replace the hero. The cursor joins the
       // box instead of seizing focus for the cursor start (the results' clear
       // button), where the next Backspace would be CLEAR.

@@ -201,7 +201,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
       assert has_element?(
                view,
                "#{row({778, :movie})} [data-role='state']",
-               "Hidden from the Feed and Discovery"
+               "Hidden from the Feed and Search's shelves"
              )
 
       # An Ignored row draws no poster, whatever the store holds.
@@ -541,22 +541,22 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   end
 
   describe "empty (UIDR-034)" do
-    test "no record: the bookmark starts the list; the button goes to Discovery while it is on", %{
+    test "no record: the bookmark starts the list; the button goes to Search while it is on", %{
       conn: conn
     } do
       {:ok, view, _html} = live_async!(conn, "/watchlist")
 
       assert has_element?(view, "#watchlist-empty", "Your list starts with a bookmark")
-      assert has_element?(view, "#watchlist-empty a[href='/discovery']", "Open Discovery")
+      assert has_element?(view, "#watchlist-empty a[href='/search']", "Open Search")
       refute has_element?(view, "#watchlist-filter")
     end
 
-    test "with Discovery off the button goes to the library", %{conn: conn} do
+    test "with Search off the button goes to the library", %{conn: conn} do
       Features.set(:discovery, false)
       {:ok, view, _html} = live_async!(conn, "/watchlist")
 
       assert has_element?(view, "#watchlist-empty a[href='/library']", "Browse the library")
-      refute has_element?(view, "#watchlist-empty a", "Open Discovery")
+      refute has_element?(view, "#watchlist-empty a", "Open Search")
     end
   end
 end

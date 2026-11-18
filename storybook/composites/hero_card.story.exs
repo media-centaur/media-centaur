@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
 
   Variations are minimally-shaped `HeroCard.Item` structs — no factories,
   generic placeholder titles only. Each passes Home's pair of actions in
-  the `actions` slot; Discovery passes its own three.
+  the `actions` slot; Search passes its own three.
   """
 
   use PhoenixStorybook.Story, :component
@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
     }
   end
 
-  # Home's pair, as the page passes them; Discovery passes Add to
+  # Home's pair, as the page passes them; Search passes Add to
   # watchlist, Download and More info the same way.
   defp actions do
     """

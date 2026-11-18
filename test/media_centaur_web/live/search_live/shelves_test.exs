@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
+defmodule MediaCentaurWeb.SearchLive.ShelvesTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Activities.Activity
@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ShelvesTest do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Watchlist.TitleIntent
   alias MediaCentaurWeb.Components.PosterRow.Item
-  alias MediaCentaurWeb.DiscoveryLive.Shelves
+  alias MediaCentaurWeb.SearchLive.Shelves
 
   defp member(tmdb_id, position),
     do: %Member{tmdb_id: tmdb_id, position: position, digital_date: ~D[2026-10-30]}

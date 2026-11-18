@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   @moduledoc """
-  Discovery's search box (UIDR-014, amended 2026-11-01 and 2026-11-02):
+  The Search page's media search box (UIDR-014, amended 2026-11-01 and 2026-11-02):
   "What do you want to watch?" over the hero's artwork, the placeholder
   alone. Typing searches TMDB (`Live.MediaSearch`, the host trait) and
   the results answer flat below as `MediaResults` — page content, no
@@ -8,8 +8,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   or downloaded. The in-input X is the one dismissal.
 
   Pure rendering; `omnibox_change` and `omnibox_clear` bubble to the
-  host. The section is the `omnibox` nav zone, so the Discovery
-  behaviour's CLEAR (`discovery_behavior.js`) finds the input by its id.
+  host. The section is the `omnibox` nav zone, so the Search
+  behaviour's CLEAR (`search_behavior.js`) finds the input by its id.
   Release search is the Downloads page's own field (`DownloadsLive.Search`).
   """
 

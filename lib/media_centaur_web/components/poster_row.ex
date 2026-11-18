@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Components.PosterRow do
   @moduledoc """
-  Horizontal poster row: Home's "Recently Added" and Discovery's shelves —
+  Horizontal poster row: Home's "Recently Added" and Search's shelves —
   and the **grouped row** (`grouped_poster_row/1`), one scroll row holding
   labelled groups of the same tiles with a hairline between them
-  (Discovery's Watchlist shelf: In Theaters · Coming Up); one nav zone,
+  (Search's Watchlist shelf: In Theaters · Coming Up); one nav zone,
   an empty group omitted, the row gone when every group is empty.
 
   Cards are the shared 2:3 poster (`--card-poster-w`), so they are the same
@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   @doc """
   One scroll row of labelled groups of poster tiles, a hairline between
-  the groups: Discovery's Watchlist shelf (In Theaters · Coming Up). One
+  the groups: Search's Watchlist shelf (In Theaters · Coming Up). One
   nav zone; the items navigate by geometry across the groups.
   """
   def grouped_poster_row(assigns) do
@@ -273,7 +273,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
           phx-click="title_ignore"
           phx-value-ref={Item.key(@item)}
           aria-label="Ignore"
-          data-tip="Ignore — hide from the Feed and Discovery"
+          data-tip="Ignore — hide from the Feed and Search's shelves"
         >
           <.icon name="hero-eye-slash" class="size-4" />
         </button>

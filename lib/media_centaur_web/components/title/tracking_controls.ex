@@ -251,11 +251,11 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   @doc "The line an ignored title shows in place of the switches."
   @spec ignored_line() :: String.t()
-  def ignored_line, do: "Hidden from the Feed and from Discovery's shelves."
+  def ignored_line, do: "Hidden from the Feed and from Search's shelves."
 
   @doc "The unlisted form's line: what Ignore does."
   @spec ignore_line() :: String.t()
-  def ignore_line, do: "Not for you? Hide it from the Feed and Discovery."
+  def ignore_line, do: "Not for you? Hide it from the Feed and Search's shelves."
 
   @doc "The unlisted form's button."
   @spec ignore_label() :: String.t()

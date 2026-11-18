@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Components.ScrollRow do
   and for the images a patch adds): the images carry `decoding="sync"`
   (UIDR-012), and a row below
   the fold would otherwise pay every poster's decode inside the glide that
-  reveals it — 200 ms on the TV for Discovery's New Releases (the hook's
+  reveals it — 200 ms on the TV for Search's New Releases (the hook's
   header has the measurement; `docs/tv-performance.md`, rule 5).
   """
 

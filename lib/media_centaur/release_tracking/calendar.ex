@@ -11,7 +11,7 @@ defmodule MediaCentaur.ReleaseTracking.Calendar do
       `next_episode_to_air` alone.
     * `read/3` — what a followed series' calendar says right now: the
       aired releases not had (**out**) and the date of the next one
-      ahead (**next**). The Watchlist page's state and Discovery's Out
+      ahead (**next**). The Watchlist page's state and the Search page's Out
       Now placement read a series through this one function (M16).
     * `latest_aired/1` — TMDB's latest aired episode from the stored
       payload (`last_episode_to_air`), as a pair: what Follow and the

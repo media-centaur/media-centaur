@@ -18,7 +18,7 @@
 // `data-src` is the cache key: the master's URL. The root layout marks the
 // same URL in a `<meta name="hero-backdrop">` and app.js pre-decodes it at
 // idle, so the first visit is warm too. Cache capacity is two: the two
-// assembled pages, Home and Discovery, each carry one backdrop (UIDR-033,
+// assembled pages, Home and Search, each carry one backdrop (UIDR-033,
 // amended 2026-11-01), so moving between them keeps both bitmaps instead of
 // re-decoding on every return.
 //

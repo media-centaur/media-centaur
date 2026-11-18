@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
   ## Variation matrix
 
     * Items axis — full row (8), single item, empty list (renders nothing).
-    * Subject axis — library entities (Home), TMDB identities (Discovery).
+    * Subject axis — library entities (Home), TMDB identities (Search).
     * Marker axis — a tile with and without its state chip.
     * Chip and glyphs axis — a date chip at the head, the social glyphs' pill.
     * Toolbar axis — `slots`: the bookmark, Download and Ignore at the foot on hover,
@@ -158,7 +158,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
       %Variation{
         id: :chips_and_glyphs,
         description:
-          "The two other things a Discovery tile can carry: `chip`, a date at the " <>
+          "The two other things a Search tile can carry: `chip`, a date at the " <>
             "poster's head (an opening date on In Theaters, a release month on " <>
             "Coming Up), and `glyphs`, the title's social glyphs at their grade in " <>
             "a dark pill at the top right (Reviewed by Friends) — with and without " <>
@@ -276,7 +276,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
       %Variation{
         id: :tmdb_identities,
         description:
-          "Tiles keyed by `ref`, a TMDB identity, as Discovery's shelves draw them: " <>
+          "Tiles keyed by `ref`, a TMDB identity, as Search's shelves draw them: " <>
             "the tile opens the title detail (`open_title`) and carries no Play; " <>
             "`marker` is the quiet state chip at the poster's foot — In library, " <>
             "Tracking, Auto-grab — and absent for a title the app has no stance on.",

@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     | `:in_theaters` | the theatrical stage; `date` the opening | *In theaters · Oct 16* |
     | `:coming_up` | unreleased; `date` the nearest ahead | *Coming up · Dec* |
     | `:undated` | TMDB has no usable date | *No release date* |
-    | `:ignored` | the Ignored rung | *Hidden from the Feed and Discovery* |
+    | `:ignored` | the Ignored rung | *Hidden from the Feed and Search's shelves* |
     """
 
     @enforce_keys [:kind]
@@ -341,7 +341,7 @@ defmodule MediaCentaurWeb.Components.Watchlist.Row do
     do: {"Coming up", Format.date_chip(:month, date, today)}
 
   def state_words(%State{kind: :undated}, _today), do: {"No release date", nil}
-  def state_words(%State{kind: :ignored}, _today), do: {"Hidden from the Feed and Discovery", nil}
+  def state_words(%State{kind: :ignored}, _today), do: {"Hidden from the Feed and Search's shelves", nil}
 
   defp rung_label(nil), do: "Not listed"
   defp rung_label(rung), do: Logic.rung_word(rung)

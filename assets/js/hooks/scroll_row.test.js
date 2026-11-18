@@ -259,7 +259,7 @@ describe("ScrollRow", () => {
   // The TV draws the page at 1080p, so a shelf below the fold first paints
   // during the glide that brings it into view, and `decoding="sync"`
   // (UIDR-012) makes that frame wait on every poster's decode: 17 posters
-  // held Discovery's first vertical glide for 200 ms (2026-11-02, runs
+  // held Search's first vertical glide for 200 ms (2026-11-02, runs
   // 20261102-121100 and -1216xx). Decoded at idle after mount, the glide
   // found them ready. The decode runs with or without a pointer: it is the
   // TV's case.

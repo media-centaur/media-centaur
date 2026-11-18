@@ -294,7 +294,7 @@ defmodule MediaCentaur.Activities do
   The titles the reader's friends have reviewed, newest review first:
   one entry per title, `%{ref, title, reviewed_at}`, from live reviews
   by visible people other than the reader. The title is the review's
-  embedded snapshot. Discovery's Reviewed by Friends shelf reads it, then
+  embedded snapshot. The Search page's Reviewed by Friends shelf reads it, then
   `activity_for/1` for the glyphs, as every title surface does.
   """
   @spec reviewed_by_friends(pos_integer()) ::

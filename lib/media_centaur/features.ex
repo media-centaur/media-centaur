@@ -57,9 +57,9 @@ defmodule MediaCentaur.Features do
     },
     %Feature{
       id: :discovery,
-      name: "Discovery",
+      name: "Search",
       description:
-        "New digital releases, your friends' reviews and your watchlist on one page, with title search.",
+        "The Search page: find a film or series by name, over new digital releases, your friends' reviews and your watchlist.",
       default: true,
       stage: :optional
     },

@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.Components.Title.ToolbarSlots do
   that owns it, and its acquisition state. Facts about the reader and a
   title, never about an action — one value per title, carried by every
   surface that offers the verbs for it: the Feed's row for one action,
-  the person page's row for one title, a Discovery poster tile. The
+  the person page's row for one title, a Search poster tile. The
   verbs themselves are the title detail host's events (`title_list`,
   `title_download`, `title_ignore`), whichever surface sends them.
 

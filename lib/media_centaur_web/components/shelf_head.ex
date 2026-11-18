@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Components.ShelfHead do
   @moduledoc """
   The head over a shelf on an assembled page: the shelf's title and, when
   the shelf has a page of its own, a quiet *See all* link at the right.
-  Home's three shelves and Discovery's compose it; a shelf's `<section>`
+  Home's three shelves and Search's compose it; a shelf's `<section>`
   carries the nav zone and the reveal attributes, this draws only the
   line above the row.
   """

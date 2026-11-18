@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   LiveView that opens a title: it owns the URL, the open `Title.Detail`
   and `Title.ModalState`, every event of the modal, the owned asyncs,
   and the subscriptions that keep an open detail honest. Home, Library,
-  Discovery, Social and Downloads `use` it.
+  Search, Social and Downloads `use` it.
 
   ## Host contract
 
@@ -1159,7 +1159,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   #
   # The bookmark, the one-click Download and Ignore on a title shown
   # outside its detail (UIDR-038 rule 4; campaign `discovery.md`,
-  # decision 16): the Feed's row, the person page's row, a Discovery
+  # decision 16): the Feed's row, the person page's row, a Search
   # tile. Each names the title by ref and an optional `activity` for a
   # friend's provenance, and reads the fact fresh — a toolbar drawn
   # before a change sets what the title's rung allows now, never what

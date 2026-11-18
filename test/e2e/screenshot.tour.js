@@ -74,13 +74,13 @@ const TOUR = [
     waitFor: "#detail-modal[data-state='open']",
   },
 
-  // ─── Discovery ───────────────────────────────────────────────────────
+  // ─── Search ───────────────────────────────────────────────────────
   // The page for titles you do not own yet: the search box over the hero
   // over the shelves. New Releases is a stored TMDB membership the daily
   // refresh writes, so the showcase seed must hold members for the shelf
   // to show (see lib/media_centaur/showcase.ex); the watchlist shelves
   // draw the seeded listed titles.
-  { name: "upcoming-calendar", url: "/discovery", settleMs: 600 },
+  { name: "upcoming-calendar", url: "/search", settleMs: 600 },
 
   // ─── Review ──────────────────────────────────────────────────────────
   { name: "review-queue", url: "/review" },

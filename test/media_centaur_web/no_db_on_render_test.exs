@@ -250,8 +250,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       )
     end
 
-    test "GET /discovery mounts within budget", %{conn: conn} do
-      # Discovery (campaign `discovery.md`) reads the New Releases
+    test "GET /search mounts within budget", %{conn: conn} do
+      # Search (campaign `discovery.md`) reads the New Releases
       # membership, the listed titles, the friends' reviews, and for
       # their refs together the store's snapshots and release stages,
       # the rungs, the library's TMDB owners, the acquisition states and
@@ -270,7 +270,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
 
       mount_and_assert(
         conn,
-        "/discovery",
+        "/search",
         60,
         "a dozen bounded shelf reads on both renders + on_mount hooks (settings cache-miss in test mode)"
       )

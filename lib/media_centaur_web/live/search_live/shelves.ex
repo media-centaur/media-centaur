@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
+defmodule MediaCentaurWeb.SearchLive.Shelves do
   @moduledoc """
-  The pure half of the Discovery page (ADR-030): the shelf items from the
+  The pure half of the Search page (ADR-030): the shelf items from the
   reads the page made, the diagnosed reason the page is empty, and which
   broadcasts call for a reload. Nothing here touches the database or the
   network; `TitleArtwork.urls/3` reads the artwork cache's directory only.
@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Shelves do
   The hero's pool (decision 1): the first #{@hero_pool} New Releases
   members the library does not own whose backdrop the referenced artwork
   tier holds on disk — the canvas decodes a local file, never a hotlink;
-  an owned title is Home's hero, not Discovery's — each as a `HeroCard.Item`
+  an owned title is Home's hero, not Search's — each as a `HeroCard.Item`
   from the store's record: the lockup or name, year, genres, runtime,
   overview, the local backdrop and logo. `HeroRotation.select/2` picks
   one of them per seven-hour block, as Home picks among its candidates.

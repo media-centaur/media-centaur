@@ -122,13 +122,13 @@ export const inputConfig = {
     continue: "[data-nav-zone='continue'] [data-nav-item]",
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
-    // Discovery page shelves (campaign discovery.md): one SHELF per shelf,
+    // Search page shelves (campaign discovery.md): one SHELF per shelf,
     // stacked like Home's.
     out_now: "[data-nav-zone='out_now'] [data-nav-item]",
     new_releases: "[data-nav-zone='new_releases'] [data-nav-item]",
     friends: "[data-nav-zone='friends'] [data-nav-item]",
     watchlist: "[data-nav-zone='watchlist'] [data-nav-item]",
-    // The search box at the top of Discovery and of Downloads (one page
+    // The search box at the top of Search and of Downloads (one page
     // renders one), then Downloads' single column: drafts → pursuits →
     // ledger; the ledger hosts the archive (chips + search).
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
@@ -611,13 +611,13 @@ export const inputConfig = {
       coming_up: { up: ["recently", "continue", "hero"] },
       sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
     },
-    // Discovery: Home's construction over the titles you do not own yet —
+    // Search: Home's construction over the titles you do not own yet —
     // the omnibox over the hero over a vertical stack of horizontal shelves:
     // Out Now, New Releases, Reviewed by Friends, the Watchlist grouped row
     // (campaign discovery.md). Candidate lists skip shelves the page did
     // not render; while a query owns the page only the omnibox and the
     // results' toolbar and grid exist.
-    discovery: {
+    search: {
       omnibox:      { down: ["hero", "out_now", "new_releases", "friends", "watchlist", "toolbar", "grid"] },
       hero:         { up: ["omnibox"], down: ["out_now", "new_releases", "friends", "watchlist"] },
       out_now:      { up: ["hero", "omnibox"], down: ["new_releases", "friends", "watchlist"] },
@@ -662,7 +662,7 @@ export const inputConfig = {
     apps: ["grid", "toolbar", "sidebar"],
     console: ["toolbar", "console_footer", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
-    discovery: ["hero", "out_now", "new_releases", "friends", "watchlist", "grid", "toolbar", "omnibox", "sidebar"],
+    search: ["hero", "out_now", "new_releases", "friends", "watchlist", "grid", "toolbar", "omnibox", "sidebar"],
     setup:     ["grid", "toolbar"],
     profiles:  ["profile_picker", "sidebar"],
   },

@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.PosterRow.GroupedPosterRow do
   @moduledoc """
   One scroll row of labelled groups of poster tiles with a hairline
-  between them — Discovery's Watchlist shelf, In Theaters · Coming Up.
+  between them — Search's Watchlist shelf, In Theaters · Coming Up.
   The tiles are `poster_row/1`'s; the groups are
   `%{label: String.t(), items: [Item.t()]}` in order. An empty group is
   omitted; a row whose groups are all empty renders nothing.

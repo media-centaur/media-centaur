@@ -3,11 +3,11 @@ defmodule MediaCentaurWeb.Components.HeroCard do
   Full-bleed hero card for an assembled page: one large title with its
   backdrop (painted by the page), lockup or name, meta line, overview, and
   the page's actions in the `actions` slot — Home's Play and More info,
-  Discovery's Add to watchlist, Download and More info. One card, two
+  Search's Add to watchlist, Download and More info. One card, two
   pages (UIDR-010 and UIDR-033, amended 2026-11-01).
 
   Item is an `Item` struct (see below): a library entity (`entity_id`) on
-  Home, a TMDB identity (`ref`) on Discovery. Every field but `:id` and
+  Home, a TMDB identity (`ref`) on Search. Every field but `:id` and
   `:name` may be nil — the template hides absent ones.
   """
 
@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Components.HeroCard do
   slot :actions,
     required: true,
     doc:
-      "the card's buttons, each a nav item: Home's Play and More info; Discovery's Add to watchlist, Download and More info"
+      "the card's buttons, each a nav item: Home's Play and More info; Search's Add to watchlist, Download and More info"
 
   def hero_card(assigns) do
     ~H"""

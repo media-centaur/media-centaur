@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Storybook.Title.WatchlistToggle do
         id: :hero_off_the_list,
         description:
           "At hero size (`size=\"lg\"`), off the list: the solid primary *Add to watchlist* " <>
-            "with the outline bookmark — Discovery's hero.",
+            "with the outline bookmark — Search's hero.",
         attributes: base(%{rung: nil, size: "lg"})
       },
       %Variation{

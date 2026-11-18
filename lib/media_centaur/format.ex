@@ -104,7 +104,7 @@ defmodule MediaCentaur.Format do
   @doc """
   A tile's or a row's date chip: the day (`Oct 24`) for a date that
   happened or opens, the month (`Dec`) for a release ahead, each with the
-  year when it is not `today`'s; nil without a date or a kind. Discovery's
+  year when it is not `today`'s; nil without a date or a kind. The Search page's
   shelves and the Watchlist page's state block read one chip.
   """
   @spec date_chip(:day | :month | nil, Date.t() | nil, Date.t()) :: String.t() | nil

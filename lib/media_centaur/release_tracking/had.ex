@@ -3,7 +3,7 @@ defmodule MediaCentaur.ReleaseTracking.Had do
   Pure. Whether a release is **had** — the person needs nothing done
   about it — in the one reading every reader uses (campaign
   `discovery.md`, M16): the want ledger (`Wants`), the calendar's
-  `Calendar.read/3` behind the Watchlist page and Discovery's Out Now,
+  `Calendar.read/3` behind the Watchlist page and the Search page's Out Now,
   and the forecast (`UpcomingFeed`).
 
   Two halves, one answer. The library's half is derived: the linked

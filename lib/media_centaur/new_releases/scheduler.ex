@@ -1,6 +1,6 @@
 defmodule MediaCentaur.NewReleases.Scheduler do
   @moduledoc """
-  The Discovery feature's runtime child (ADR-081, `Features.Runtime`): the
+  The `:discovery` feature's runtime child (ADR-081, `Features.Runtime`): the
   New Releases shelf's schedule, alive only while the flag is on. It
   enqueues one `RefreshJob` when it starts — at boot or at turn-on, so the
   shelf fills then — and one every day at #{"04:03"} UTC after that, the

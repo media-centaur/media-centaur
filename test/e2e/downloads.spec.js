@@ -1,5 +1,5 @@
 /**
- * Downloads page E2E tests (UIDR-015, amended at the Discovery campaign's
+ * Downloads page E2E tests (UIDR-015, amended at the Search campaign's
  * cutover: the get stage, UIDR-057).
  *
  * Covers cursor start on the pursuits, the vertical zone chain (the release

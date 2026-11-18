@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.HeroRotation do
   @moduledoc """
   Which of a page's hero candidates is showing right now: one pick per
   seven-hour block of the clock, the same function for Home (over the
-  library's hero candidates) and Discovery (over the New Releases shelf's
+  library's hero candidates) and Search (over the New Releases shelf's
   first members). Pure: the pick changes when a page re-assigns its hero,
   on mount or when its candidates change, never on a timer.
   """

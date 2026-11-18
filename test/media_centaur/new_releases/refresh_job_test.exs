@@ -32,7 +32,7 @@ defmodule MediaCentaur.NewReleases.RefreshJobTest do
     Oban.Testing.perform_job(RefreshJob, %{}, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite)
   end
 
-  test "while Discovery is off a run already waiting does nothing" do
+  test "while the feature is off a run already waiting does nothing" do
     Features.set(:discovery, false)
 
     assert :ok = perform()

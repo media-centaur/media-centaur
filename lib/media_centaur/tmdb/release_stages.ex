@@ -2,7 +2,7 @@ defmodule MediaCentaur.TMDB.ReleaseStages do
   @moduledoc """
   The release stage of each title in a set, read from the store's records
   at a date — a projection over stored payloads (ADR-071), no request.
-  Discovery's watchlist shelves split the listed titles by it: Out Now,
+  The Search page's watchlist shelves split the listed titles by it: Out Now,
   In Theaters, Coming Up.
 
   A movie reads through `ReleaseWindow`: **home** when a digital or disc

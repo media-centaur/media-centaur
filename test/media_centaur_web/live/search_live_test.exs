@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.DiscoveryLiveTest do
+defmodule MediaCentaurWeb.SearchLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
@@ -21,10 +21,10 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   describe "the feature (ADR-081)" do
     test "on by default: the sidebar entry and the page", %{conn: conn} do
       TmdbStubs.mark_ready!()
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
-      assert has_element?(view, "[data-tip='Discovery']")
-      refute has_element?(view, "#discovery-off")
+      assert has_element?(view, "[data-tip='Search']")
+      refute has_element?(view, "#search-off")
       assert has_element?(view, "#omnibox-media-input")
     end
 
@@ -32,18 +32,18 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
          %{conn: conn} do
       Features.set(:discovery, false)
 
-      {:ok, view, _html} = live(conn, "/discovery")
-      refute has_element?(view, "[data-tip='Discovery']")
-      assert has_element?(view, "#discovery-off")
-      assert render(view) =~ "Discovery is off"
+      {:ok, view, _html} = live(conn, "/search")
+      refute has_element?(view, "[data-tip='Search']")
+      assert has_element?(view, "#search-off")
+      assert render(view) =~ "Search is off"
 
-      view |> element("#discovery-off-turn-on") |> render_click()
+      view |> element("#search-off-turn-on") |> render_click()
       assert Features.enabled?(:discovery)
     end
 
     test "the Feature flags row lists it as optional, on", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/settings?section=features")
-      assert html =~ "Discovery"
+      assert html =~ "Search"
 
       refute MediaCentaurWeb.SettingsLive.FeatureFlags.description(MediaCentaur.Features.get(:discovery)) =~
                "In development."
@@ -73,15 +73,15 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       store_movie(902, "Movie B")
       :ok = NewReleases.replace([digital(902), digital(901)])
 
-      {:ok, view, html} = live(conn, "/discovery")
+      {:ok, view, html} = live(conn, "/search")
 
       assert has_element?(view, "#new-releases-row-movie-902")
       assert has_element?(view, "#new-releases-row-movie-901")
       assert :binary.match(html, "Movie B") < :binary.match(html, "Movie A")
-      refute has_element?(view, "#discovery-empty")
+      refute has_element?(view, "#search-empty")
 
       view |> element("#new-releases-row-movie-901") |> render_click()
-      assert_patch(view, "/discovery?title=movie-901")
+      assert_patch(view, "/search?title=movie-901")
     end
 
     test "a member without a record is not drawn, an ignored one is dropped, an owned one says In library",
@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
       :ok = NewReleases.replace([digital(901), digital(902), digital(903), digital(904)])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       assert has_element?(view, "#new-releases-row-movie-901")
       refute has_element?(view, "#new-releases-row-movie-902")
@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       store_movie(901, "Movie A")
       :ok = NewReleases.replace([digital(901)])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       assert has_element?(view, "#new-releases-row-movie-901-list[aria-label='Add to watchlist']")
 
       view |> element("#new-releases-row-movie-901-list") |> render_click()
@@ -140,7 +140,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       File.write!(backdrop, "jpeg")
       :ok = NewReleases.replace([digital(901), digital(902)])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       assert has_element?(
                view,
@@ -148,16 +148,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
              )
 
       assert has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie B")
-      assert has_element?(view, "#discovery-hero-list[aria-pressed='false']", "Add to watchlist")
+      assert has_element?(view, "#search-hero-list[aria-pressed='false']", "Add to watchlist")
       assert has_element?(view, "[data-nav-zone='hero'] button", "Download")
-      refute has_element?(view, "h1", "Discovery")
+      refute has_element?(view, "h1", "Search")
 
-      view |> element("#discovery-hero-list") |> render_click()
+      view |> element("#search-hero-list") |> render_click()
       assert MediaCentaur.Watchlist.rung(902, :movie) == :list
       assert render_until(view, "On your watchlist") =~ "On your watchlist"
 
-      view |> element("#discovery-hero-more") |> render_click()
-      assert_patch(view, "/discovery?title=movie-902")
+      view |> element("#search-hero-more") |> render_click()
+      assert_patch(view, "/search?title=movie-902")
       await_supervised_tasks()
     end
 
@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
       :ok = NewReleases.replace([digital(901), digital(902)])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       assert has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie B")
       refute has_element?(view, "[data-nav-zone='hero'] [data-component='hero'] h1", "Movie A")
@@ -188,11 +188,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       store_movie(901, "Movie A")
       :ok = NewReleases.replace([digital(901)])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       refute has_element?(view, "canvas#hero-backdrop")
       refute has_element?(view, "[data-nav-zone='hero']")
-      assert has_element?(view, "h1", "Discovery")
+      assert has_element?(view, "h1", "Search")
     end
 
     test "the shelf follows the membership", %{conn: conn} do
@@ -200,7 +200,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       store_movie(902, "Movie B")
       :ok = NewReleases.replace([digital(901)])
 
-      {:ok, view, html} = live(conn, "/discovery")
+      {:ok, view, html} = live(conn, "/search")
       refute html =~ "Movie B"
 
       :ok = NewReleases.replace([digital(901), digital(902)])
@@ -208,9 +208,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "nothing stored yet: the page says the first refresh is on its way", %{conn: conn} do
-      {:ok, view, html} = live(conn, "/discovery")
+      {:ok, view, html} = live(conn, "/search")
 
-      assert has_element?(view, "#discovery-empty")
+      assert has_element?(view, "#search-empty")
       assert html =~ "New releases are on their way"
     end
 
@@ -218,7 +218,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
          %{conn: conn} do
       {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
 
-      {:ok, _view, html} = live(conn, "/discovery")
+      {:ok, _view, html} = live(conn, "/search")
       assert html =~ "New releases arrive when TMDB is back"
     end
   end
@@ -269,7 +269,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       movie = create_movie(%{name: "Movie Owned", tmdb_id: "904"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, html} = live(conn, "/discovery")
+      {:ok, view, html} = live(conn, "/search")
 
       assert has_element?(view, "#out-now-row-movie-901", "Tracking")
 
@@ -311,7 +311,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       create_episode(%{season_id: season.id, episode_number: 1, name: "Episode 1"})
       :ok = MediaCentaur.ReleaseTracking.LibraryLinks.refresh_for([tv.id])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       assert has_element?(view, "#out-now-row-tv_series-906", "Season 2")
     end
@@ -345,7 +345,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "a friend's review puts the title on the shelf with its glyph; the shelf links to Social", %{
       conn: conn
     } do
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       assert has_element?(view, "#friends-row-movie-905 [data-role='social-glyphs']")
       assert has_element?(view, "[data-row='friends'] a[href='/social']", "See all")
@@ -354,7 +354,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "with Social off the shelf is gone", %{conn: conn} do
       Features.set(:social, false)
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       refute has_element?(view, "#friends-row")
     end
   end
@@ -385,7 +385,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       assert has_element?(view, "[data-nav-zone='omnibox'] #omnibox-media-input")
       assert has_element?(view, "#new-releases-row-movie-901")
 
@@ -397,7 +397,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "[data-nav-zone='hero']")
 
       view |> element("#omnibox-result-movie-424242") |> render_click()
-      assert_patch(view, "/discovery?title=movie-424242")
+      assert_patch(view, "/search?title=movie-424242")
 
       render_click(view, "omnibox_clear", %{})
       assert has_element?(view, "#new-releases-row-movie-901")
@@ -407,7 +407,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "without TMDB the box is not offered; the capability gap says what to do", %{conn: conn} do
       TmdbStubs.mark_unconfigured!()
 
-      {:ok, view, html} = live(conn, "/discovery")
+      {:ok, view, html} = live(conn, "/search")
       refute has_element?(view, "#omnibox-media-input")
       assert html =~ "Connect TMDB to fill this page"
     end
@@ -443,7 +443,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, html} = live(conn, "/discovery")
+      {:ok, view, html} = live(conn, "/search")
       assert html =~ "What do you want to watch?"
 
       html = search(view, "sample")
@@ -453,7 +453,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # Every pick lands on the title detail; Download lives inside it.
       view |> element("#omnibox-result-tv_series-246810") |> render_click()
 
-      assert_patch(view, "/discovery?title=tv_series-246810")
+      assert_patch(view, "/search?title=tv_series-246810")
       assert has_element?(view, "#detail-modal[data-state='open']", "Sample Show")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
@@ -472,7 +472,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       html = search(view, "sample")
 
       # Rows live in the `grid` nav zone; the chip strip above them is the
@@ -516,7 +516,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
       create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       assert has_element?(view, "#omnibox-result-movie-424242", "On your list")
@@ -540,7 +540,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       # `create_tracking_item/1` also puts the title on the ladder at Grab,
@@ -567,7 +567,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       assert has_element?(
@@ -602,7 +602,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, _rec} = Activities.ingest(event)
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       assert has_element?(
@@ -624,7 +624,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "upcoming")
 
       # The detail's preview and the arm's calendar both read the movie.
@@ -640,7 +640,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # Picking the upcoming row opens the title detail — no plan modal.
       view |> element("#omnibox-result-movie-888") |> render_click()
 
-      assert_patch(view, "/discovery?title=movie-888")
+      assert_patch(view, "/search?title=movie-888")
       assert has_element?(view, "#detail-modal[data-state='open']", "Upcoming Movie")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
@@ -677,7 +677,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "movie")
 
       # Unscoped: both rows.
@@ -699,7 +699,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "an exhausted query renders the honest empty answer; Clear search resets it", %{conn: conn} do
       TmdbStubs.stub_search_multi([])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       html = search(view, "zzzz")
       assert html =~ "Nothing found on TMDB."
 
@@ -713,7 +713,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "an in-input X appears once a query is typed and clears the search", %{conn: conn} do
       TmdbStubs.stub_search_multi([])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
 
       # Empty box — no X to click.
       refute has_element?(view, "#omnibox-media-clear")
@@ -739,7 +739,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         end
       )
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       # Result #9 was the first casualty of the old Enum.take(8) cap.
@@ -760,7 +760,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       html = search(view, "sample")
       assert html =~ "Sample Movie"
 
@@ -787,11 +787,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       view |> element("#omnibox-result-tv_series-246810") |> render_click()
-      assert_patch(view, "/discovery?title=tv_series-246810")
+      assert_patch(view, "/search?title=tv_series-246810")
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
       refute has_element?(view, "#omnibox-result-tv_series-246810", "On your list")
 
@@ -826,11 +826,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live(conn, "/discovery")
+      {:ok, view, _html} = live(conn, "/search")
       search(view, "sample")
 
       view |> element("#omnibox-result-movie-424242") |> render_click()
-      assert_patch(view, "/discovery?title=movie-424242")
+      assert_patch(view, "/search?title=movie-424242")
 
       view |> element("#detail-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")

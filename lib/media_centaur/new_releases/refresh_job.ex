@@ -1,7 +1,7 @@
 defmodule MediaCentaur.NewReleases.RefreshJob do
   @moduledoc """
   The shelf refresh (`MediaCentaur.NewReleases.refresh/1`), enqueued by
-  `Scheduler` — the Discovery feature's runtime child — when the runtime
+  `Scheduler` — the `:discovery` feature's runtime child — when the runtime
   starts and daily at 04:03 UTC after that, never by Oban's cron: with the
   feature off nothing inserts it (ADR-081). It still asks the flag, for a
   run already waiting when the flag flipped off. Held while TMDB is

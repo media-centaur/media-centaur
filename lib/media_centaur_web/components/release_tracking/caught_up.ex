@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.CaughtUp do
   The point is the person's caught-up pair on their `Watchlist.TitleIntent`,
   the latest aired episode they have seen. Everything at or before it is
   *had*: no want opens for it, the Watchlist row does not count it as out,
-  Discovery's Out Now does not place the show for it. The row makes that
+  Search's Out Now does not place the show for it. The row makes that
   fact visible — a hidden point would be an assumption — and movable:
 
     * two of the kit's glass selects (`GlassMenu.menu_select`), the season

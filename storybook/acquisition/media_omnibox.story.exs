@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
   @moduledoc """
-  Discovery's search box (UIDR-014, amended) — "What do you want to
+  The Search page's media search box (UIDR-014, amended) — "What do you want to
   watch?" over the hero's artwork, the placeholder alone. The results
   answer flat below it, outside this component (the MediaResults
   section).

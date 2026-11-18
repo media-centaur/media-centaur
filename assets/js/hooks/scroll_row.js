@@ -23,7 +23,7 @@
 // `decoding="sync"` (UIDR-012), so the frame that first paints them waits
 // on their decode. A row on the first screen pays that at load; a row
 // below the fold pays it inside the glide that brings it into view — on
-// the TV, where the page is drawn at 1080p and Discovery's New Releases
+// the TV, where the page is drawn at 1080p and Search's New Releases
 // sits below the hero and Out Now, 17 posters decoding at once held the
 // first vertical glide for 200 ms (2026-11-02, mc-tv-smooth runs
 // 20261102-121100 and 20261102-121641, mc-tv-trace 20261102T120910: the

@@ -18,7 +18,7 @@ import { waitForLiveView, waitForSettle } from "./helpers/liveview.js"
 const PHONE_WIDTH = 360
 
 // The pages the bar carries, plus the ones reached through them.
-const PAGES = ["/", "/library", "/discovery", "/social", "/watchlist"]
+const PAGES = ["/", "/library", "/search", "/social", "/watchlist"]
 
 async function open(page, path) {
   await page.goto(path)
@@ -36,7 +36,7 @@ test.describe("the compact shell", () => {
 
     // The bar's cells: every entry with a compact name, none without.
     await expect(page.locator("#sidebar .sidebar-link:visible:not([data-compact])")).toHaveCount(0)
-    for (const id of ["sidebar-home", "sidebar-library", "sidebar-discovery", "sidebar-social"]) {
+    for (const id of ["sidebar-home", "sidebar-library", "sidebar-search", "sidebar-social"]) {
       await expect(page.locator(`#${id}[data-compact]`)).toBeVisible()
     }
     for (const id of ["sidebar-watchlist", "sidebar-review", "sidebar-downloads", "sidebar-settings"]) {

@@ -1,5 +1,5 @@
 /**
- * A search box's CLEAR, shared by the pages that carry one — Discovery's
+ * A search box's CLEAR, shared by the pages that carry one — Search's
  * media search (`#omnibox-media-input`) and Downloads' release search
  * (`#omnibox-release-input`): wipe the box client-side and dispatch
  * `input` so LiveView hears the change. Each behaviour names its own

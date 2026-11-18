@@ -21,7 +21,7 @@ import { createReviewBehavior } from "./review_behavior"
 import { createEpisodeMappingBehavior } from "./episode_mapping_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createDownloadsBehavior, downloadsDom } from "./downloads_behavior"
-import { createDiscoveryBehavior, discoveryDom } from "./discovery_behavior"
+import { createSearchBehavior, searchDom } from "./search_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
 import { createWatchlistBehavior, watchlistDom } from "./watchlist_behavior"
 import { createSocialBehavior } from "./social_behavior"
@@ -38,7 +38,7 @@ const BEHAVIOR_REGISTRY = {
   "episode-mapping": () => createEpisodeMappingBehavior(),
   settings: () => createSettingsBehavior(),
   downloads: () => createDownloadsBehavior(downloadsDom),
-  discovery: () => createDiscoveryBehavior(discoveryDom),
+  search: () => createSearchBehavior(searchDom),
   "watch-history": () => createWatchHistoryBehavior(),
   watchlist: () => createWatchlistBehavior(watchlistDom),
   social: () => createSocialBehavior(),

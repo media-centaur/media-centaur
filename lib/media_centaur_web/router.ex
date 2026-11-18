@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.Router do
       # active profile instead of redirecting, so it can be the door.
       live "/profiles", ProfilesLive, :index
       live "/apps", AppsLive, :index
-      live "/discovery", DiscoveryLive, :index
+      live "/search", SearchLive, :index
       live "/watchlist", WatchlistLive, :index
       live "/console", ConsolePageLive, :index
       live "/social", SocialLive, :feed

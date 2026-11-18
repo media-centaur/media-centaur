@@ -5,9 +5,9 @@ defmodule MediaCentaurWeb.WatchlistLive do
   page is what you want. A side view of UIDR-057 beside Library, Social
   and History, not a stage: it is not a feature (ADR-081) — the bookmark
   is on every title whatever is on, so the page is ungated and in the
-  sidebar unconditionally, and it exists while Discovery is off.
+  sidebar unconditionally, and it exists while Search is off.
 
-  One record, two reads: Discovery draws the list by release stage to
+  One record, two reads: Search draws the list by release stage to
   answer *what can I get*; this page draws it by **rung** — Auto-grab,
   Tracking, On your list, Between seasons, Ignored, Series you've watched
   (`Logic.group_order/0`) — to answer *what have I told the app to do,
@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
   Above the groups: the type filter (All, Movies, Series) and a search
   over the names; both narrow the rows and are the page's own state, not
   the URL's. Empty, the page says why (UIDR-034): no record yet, with
-  the bookmark named and a button to Discovery while it is on, else to
+  the bookmark named and a button to Search while it is on, else to
   Library; or nothing matching, with Show all.
 
   Opening the page reads the database only. The rows follow the
@@ -484,18 +484,18 @@ defmodule MediaCentaurWeb.WatchlistLive do
           headline="Your list starts with a bookmark"
           data-nav-zone="watchlist_rows"
         >
-          Press the bookmark on any title — in the library, on Discovery, in a search — and it
+          Press the bookmark on any title — in the library or on Search — and it
           lands here with what the app knows about its releases.
           <:action>
             <.button
               :if={:discovery in @features}
               variant="primary"
               size="sm"
-              navigate={~p"/discovery"}
+              navigate={~p"/search"}
               data-nav-item
               tabindex="0"
             >
-              Open Discovery
+              Open Search
             </.button>
             <.button
               :if={:discovery not in @features}

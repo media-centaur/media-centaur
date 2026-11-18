@@ -1,7 +1,7 @@
 /**
- * Discovery page behavior.
+ * Search page behavior.
  *
- * Navigation is the framework's, via the `discovery` zone layout in
+ * Navigation is the framework's, via the `search` zone layout in
  * config.js (the omnibox over the hero over the shelves). The page's own
  * contribution is CLEAR: wipe the omnibox query — the one clearable text
  * surface — and stay where the cursor is. Clearing the query hands the
@@ -13,7 +13,7 @@
 import { omniboxInput } from "./omnibox_clear"
 
 /**
- * @typedef {Object} DiscoveryDom
+ * @typedef {Object} SearchDom
  * @property {function(): {value: string, clear: function}|null} getOmniboxInput
  */
 
@@ -22,10 +22,10 @@ const REAL_DOM = {
 }
 
 /**
- * @param {DiscoveryDom} dom
+ * @param {SearchDom} dom
  * @returns {import("./page_behavior").PageBehavior}
  */
-export function createDiscoveryBehavior(dom = REAL_DOM) {
+export function createSearchBehavior(dom = REAL_DOM) {
   return {
     onAttach() {},
     onDetach() {},
@@ -36,4 +36,4 @@ export function createDiscoveryBehavior(dom = REAL_DOM) {
   }
 }
 
-export { REAL_DOM as discoveryDom }
+export { REAL_DOM as searchDom }

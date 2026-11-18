@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.DiscoveryLive do
+defmodule MediaCentaurWeb.SearchLive do
   @moduledoc """
-  Discovery: the page for titles you do not own yet (campaign
+  Search: the page for titles you do not own yet (campaign
   `discovery.md`) — the second assembled page, shelved like Home, and the
   *choose* stage of a title's life (UIDR-057). An optional feature
   (ADR-081), on by default: its sidebar entry, this page and its shelf
@@ -14,9 +14,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   results answer flat over the scrim as title rows (decision 10); a row
   opens the detail, where a result is listed or downloaded. Clearing the
   query is the one dismissal, by the box's X or CLEAR
-  (`discovery_behavior.js`).
+  (`search_behavior.js`).
 
-  Discovery is the second artwork page (UIDR-010 and UIDR-033, amended
+  Search is the second artwork page (UIDR-010 and UIDR-033, amended
   2026-11-01): a full-bleed backdrop painted by the hero canvas from the
   referenced artwork tier, and a hero card for the most notable new
   release — one of the shelf's first five members the library does not own
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   never configured is the capability gap with the one action; TMDB down
   with nothing stored, or the first refresh still to run, each say so.
 
-  Input: `data-nav-default-zone="discovery"` selects the `discovery`
+  Input: `data-nav-default-zone="search"` selects the `search`
   layout — one SHELF zone per shelf, as on Home; no page behaviour until
   search needs CLEAR.
   """
@@ -71,7 +71,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.{ActionToast, DetailPanel, FeatureOff, PosterRow, ShelfHead}
   alias MediaCentaurWeb.Components.{HeroBackdrop, HeroCard}
   alias MediaCentaurWeb.Components.Title.{ToolbarSlots, WatchlistToggle}
-  alias MediaCentaurWeb.DiscoveryLive.Shelves
+  alias MediaCentaurWeb.SearchLive.Shelves
   alias MediaCentaurWeb.HeroRotation
   alias MediaCentaurWeb.Live.{MediaSearch, ReviewModal, Subscriptions, TitleDetailHost}
   alias MediaCentaurWeb.Live.PlanHost
@@ -90,7 +90,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
     {:ok,
      assign(socket,
-       page_title: "Discovery",
+       page_title: "Search",
        today: Date.utc_today(),
        loaded?: false,
        reload_timer: nil,
@@ -214,8 +214,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: {Enum.find(MediaSearch.results(socket), &(Title.ref(&1) == ref)), %{}}
 
   @impl TitleDetailHost
-  def overlay_path(_socket, []), do: ~p"/discovery"
-  def overlay_path(_socket, query), do: ~p"/discovery?#{query}"
+  def overlay_path(_socket, []), do: ~p"/search"
+  def overlay_path(_socket, query), do: ~p"/search?#{query}"
 
   @impl TitleDetailHost
   def download_started(socket), do: TitleDetailHost.close_title(socket)
@@ -231,7 +231,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       viewing_layer={assigns[:viewing_layer]}
       features={@features}
       flash={@flash}
-      current_path="/discovery"
+      current_path="/search"
       full_width
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
@@ -255,7 +255,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       </:overlays>
       <FeatureOff.feature_off
         :if={:discovery not in @features}
-        id="discovery-off"
+        id="search-off"
         feature={Features.get(:discovery)}
       />
       <%!-- The modal's params are modal state: stripped from the remembered
@@ -264,8 +264,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       <div
         :if={:discovery in @features}
         class="relative"
-        data-page-behavior="discovery"
-        data-nav-default-zone="discovery"
+        data-page-behavior="search"
+        data-nav-default-zone="search"
         data-nav-transient-params="title,entity,view,activity,plan"
       >
         <%!-- Page atmosphere, as Home's: the backdrop painted by the hero
@@ -319,7 +319,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               <HeroCard.hero_card item={@hero}>
                 <:actions>
                   <WatchlistToggle.watchlist_toggle
-                    id="discovery-hero-list"
+                    id="search-hero-list"
                     rung={@hero_slots.rung}
                     event="set_rung"
                     size="lg"
@@ -328,7 +328,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   />
                   <.button
                     :if={@hero_slots.download == :download}
-                    id="discovery-hero-download"
+                    id="search-hero-download"
                     variant="secondary"
                     size="lg"
                     class="text-white"
@@ -341,7 +341,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                     <.icon name="hero-arrow-down-tray" class="size-5" /> Download
                   </.button>
                   <.button
-                    id="discovery-hero-more"
+                    id="search-hero-more"
                     variant="secondary"
                     size="lg"
                     class="text-white"
@@ -359,7 +359,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           </div>
         </div>
 
-        <.page_header :if={!@hero && !@search_owns?} title="Discovery" />
+        <.page_header :if={!@hero && !@search_owns?} title="Search" />
         <%!-- Ignore shows no state to reverse, so it gets an undo toast; the
               host keeps the undo (`:ignore_undo`), this page draws it. --%>
         <ActionToast.action_toast
@@ -431,7 +431,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
           <.empty_state
             :if={@empty_reason == :tmdb_unconfigured}
-            id="discovery-empty"
+            id="search-empty"
             icon="hero-sparkles"
             headline="Connect TMDB to fill this page"
           >
@@ -444,7 +444,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           </.empty_state>
           <.empty_state
             :if={@empty_reason == :tmdb_down}
-            id="discovery-empty"
+            id="search-empty"
             icon="hero-sparkles"
             headline="New releases arrive when TMDB is back"
           >
@@ -452,7 +452,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           </.empty_state>
           <.empty_state
             :if={@empty_reason == :filling}
-            id="discovery-empty"
+            id="search-empty"
             icon="hero-sparkles"
             headline="New releases are on their way"
           >

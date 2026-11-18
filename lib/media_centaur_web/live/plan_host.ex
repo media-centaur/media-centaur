@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Live.PlanHost do
   that starts a download: it owns the modal's URL (`?plan=…`,
   `Live.PlanQuery`), its state (`:plan`, a `State`), every event of the
   picker and the board, the owned asyncs, and the PubSub reactions that
-  keep an open board honest. Home, Library, Discovery, Social, Watchlist
+  keep an open board honest. Home, Library, Search, Social, Watchlist
   and Downloads `use` it beside `TitleDetailHost`, so the plan modal is a
   tenant of whichever page opened it, as the title detail is
   (`campaigns/adaptive-layout.md`, M9: behaviour never keys on the device

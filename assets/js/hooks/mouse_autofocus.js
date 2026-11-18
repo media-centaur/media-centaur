@@ -18,7 +18,7 @@
 // is race-free regardless of hook mount ordering.
 //
 // A touch screen reads as the mouse: a tap raises the mouse compatibility
-// events, so a phone arrives on Discovery with `data-input="mouse"`. There
+// events, so a phone arrives on Search with `data-input="mouse"`. There
 // the affordance inverts — focusing the box raises the on-screen keyboard
 // over the page the user just opened — so on a coarse pointer focus is by
 // tap only. The pointer class is the browser's media feature, never the

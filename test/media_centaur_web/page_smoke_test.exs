@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/guide", "guide index"},
           {"/guide/#{@guide_slug}", "guide chapter"},
           {"/apps", "apps"},
-          {"/discovery", "discovery"},
+          {"/search", "search"},
           {"/watchlist", "watchlist"}
         ] ++ @subsystem_routes do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do

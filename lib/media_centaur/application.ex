@@ -206,7 +206,7 @@ defmodule MediaCentaur.Application do
   # Each feature's runtime (ADR-081): the children `Features.Runtime` runs
   # while the flag is on. Social dials relays, syncs with them and publishes
   # the person's acts; remote players holds the one open pairing code;
-  # Discovery's scheduler enqueues one New Releases refresh when its
+  # The `:discovery` feature's scheduler enqueues one New Releases refresh when its
   # runtime starts, at boot or at turn-on, and one a day after that — the
   # shelf has no cron entry, so nothing of it runs while the feature is
   # off. The children that are background work keep the instance rule:

@@ -179,7 +179,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   },
 })
 
-// The search boxes (Discovery's media search, Downloads' release search):
+// The search boxes (Search's media search, Downloads' release search):
 // "Clear search" wipes the input client-side. The server resets the query,
 // but LiveView never overwrites a focused input's value — without this, the
 // stale text would sit in the box.
@@ -270,7 +270,7 @@ if (process.env.NODE_ENV === "development") {
 // Pre-decode the page hero backdrops into the HeroBackdrop bitmap cache once
 // the launch is quiet. The root layout marks their keys in
 // `<meta name="hero-backdrop">` (`hero_backdrop_src/1` on both sides), so the
-// first visit to Home paints its hero from cache (Discovery's hero is read
+// first visit to Home paints its hero from cache (Search's hero is read
 // from the database, which the root layout's render path never touches, so
 // it decodes on arrival and stays cached across returns). The bytes are not
 // prefetched: the hook fetches a derivative sized to this display.

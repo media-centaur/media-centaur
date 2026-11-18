@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Live.SidebarTest do
     # The Watchlist entry is unconditional: the list exists whatever is on (UIDR-057, amended).
     assert has_element?(
              view,
-             "#sidebar nav[aria-label='Watch'] > [aria-label='Discovery'] + [aria-label='Watchlist'] + [aria-label='Downloads']"
+             "#sidebar nav[aria-label='Watch'] > [aria-label='Search'] + [aria-label='Watchlist'] + [aria-label='Downloads']"
            )
 
     assert has_element?(view, "#sidebar nav#sidebar-system[aria-label='System'] > #sidebar-settings")
@@ -39,11 +39,11 @@ defmodule MediaCentaurWeb.Live.SidebarTest do
   # The phone carries watch + choose (`campaigns/adaptive-layout.md`): the
   # compact shell's bar is these entries and no other; Watchlist is reached
   # through See all, and the rest stay on the desktop.
-  test "the compact shell is Home, Library, Discovery, Social and the profile switcher", %{conn: conn} do
+  test "the compact shell is Home, Library, Search, Social and the profile switcher", %{conn: conn} do
     MediaCentaur.TestFactory.create_pending_file()
     {:ok, view, _html} = live_async!(conn, @page)
 
-    for id <- ~w(sidebar-home sidebar-library sidebar-discovery sidebar-social) do
+    for id <- ~w(sidebar-home sidebar-library sidebar-search sidebar-social) do
       assert has_element?(view, "##{id}[data-compact]"), "#{id} belongs in the compact shell"
     end
 
