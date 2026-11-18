@@ -216,7 +216,7 @@ config :tailwind,
   # `@container scroll-state(...)` — 4.1.x dropped the whole rule under
   # --minify, so the pinned detail block's backing never turned on in
   # releases. scripts/preflight asserts the rule survives minification.
-  version: "4.3.3",
+  version: "4.3.5",
   media_centaur: [
     args: ~w(
       --input=assets/css/app.css
