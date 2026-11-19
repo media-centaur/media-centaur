@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
   @moduledoc """
-  The Acquisition section of the Settings page (UIDR-041): five cards.
+  The Acquisition section of the Settings page (UIDR-041): five cards,
+  under the stack's wiring proposal while there is one
+  (`Components.Settings.WiringProposal`).
   Search holds the Prowlarr connection row; Download clients the torrent
   and usenet rows with Detect from Prowlarr on the card; Download button
   and Auto-acquisition are gated on Prowlarr's readiness and say so while
@@ -14,6 +16,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
   import MediaCentaurWeb.Components.Settings
   import MediaCentaurWeb.Components.Settings.ConnectionRow
+  import MediaCentaurWeb.Components.Settings.WiringProposal
 
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Settings.Ladder
@@ -31,6 +34,10 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
     required: true,
     doc: "`%{id => ConnectionState.t()}` for :prowlarr, :download_client, :usenet_download_client."
 
+  attr :wiring, :any,
+    default: :none,
+    doc: "`Downloads.Wiring.proposal/0`: `:none`, a proposal, or the reason the file cannot be used."
+
   attr :prowlarr_configured, :boolean, required: true
   attr :prowlarr_ready, :boolean, required: true
   attr :download_client_detecting, :boolean, required: true
@@ -44,6 +51,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
   def render(assigns) do
     ~H"""
     <div class="space-y-4">
+      <.wiring_proposal :if={@wiring != :none} wiring={@wiring} />
       <.settings_card title="Search">
         <ul>
           <.integration_row

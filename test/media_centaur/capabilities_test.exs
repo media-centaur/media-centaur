@@ -352,4 +352,28 @@ defmodule MediaCentaur.CapabilitiesTest do
       assert Config.get(:download_client_username) == ""
     end
   end
+
+  describe "integration_changes/2" do
+    test "names the fields a save would change, and saves nothing" do
+      Config.update(:prowlarr_url, "http://prowlarr.local")
+      Config.update(:prowlarr_api_key, "key")
+
+      assert Capabilities.integration_changes(:prowlarr, %{
+               "prowlarr_url" => "http://prowlarr.local",
+               "prowlarr_api_key" => "other"
+             }) == [:prowlarr_api_key]
+
+      assert MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key)) == "key"
+    end
+
+    test "is empty when every submitted value is already stored" do
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://127.0.0.1:8080")
+
+      assert Capabilities.integration_changes(:download_client, %{
+               "download_client_type" => "qbittorrent",
+               "download_client_url" => "http://127.0.0.1:8080"
+             }) == []
+    end
+  end
 end

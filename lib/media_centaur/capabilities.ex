@@ -154,18 +154,27 @@ defmodule MediaCentaur.Capabilities do
   """
   @spec save_integration(subject(), %{optional(String.t()) => term()}) :: boolean()
   def save_integration(subject, params) when is_map(params) do
-    changes =
-      @integration_fields
-      |> Map.fetch!(subject)
-      |> Enum.filter(fn {key, kind} -> changes?(key, kind, Map.get(params, Atom.to_string(key))) end)
+    case integration_changes(subject, params) do
+      [] ->
+        false
 
-    if changes == [] do
-      false
-    else
-      clear_test_result(subject)
-      Enum.each(changes, fn {key, _kind} -> Config.update(key, Map.get(params, Atom.to_string(key))) end)
-      true
+      keys ->
+        clear_test_result(subject)
+        Enum.each(keys, fn key -> Config.update(key, Map.get(params, Atom.to_string(key))) end)
+        true
     end
+  end
+
+  @doc """
+  The fields of an integration that `save_integration/2` would change for
+  `params`, in form order. Saves nothing: it is how a set of values from
+  somewhere other than the form is compared with what is stored.
+  """
+  @spec integration_changes(subject(), %{optional(String.t()) => term()}) :: [atom()]
+  def integration_changes(subject, params) when is_map(params) do
+    for {key, kind} <- Map.fetch!(@integration_fields, subject),
+        changes?(key, kind, Map.get(params, Atom.to_string(key))),
+        do: key
   end
 
   @doc """

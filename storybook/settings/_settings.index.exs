@@ -17,4 +17,5 @@ defmodule MediaCentaurWeb.Storybook.Settings do
   def entry("settings_input"), do: [icon: {:fa, "i-cursor", :thin}, name: "Input"]
   def entry("path_status"), do: [icon: {:fa, "circle-check", :thin}, name: "Path status"]
   def entry("connection_row"), do: [icon: {:fa, "plug", :thin}, name: "Connection row"]
+  def entry("wiring_proposal"), do: [icon: {:fa, "right-left", :thin}, name: "Wiring proposal"]
 end

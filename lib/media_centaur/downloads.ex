@@ -4,7 +4,8 @@ defmodule MediaCentaur.Downloads do
       MediaCentaur.Capabilities,
       MediaCentaur.Features,
       MediaCentaur.ErrorReports,
-      MediaCentaur.HttpClient
+      MediaCentaur.HttpClient,
+      MediaCentaur.Settings
     ],
     exports: [
       ClientConfig,
@@ -19,7 +20,9 @@ defmodule MediaCentaur.Downloads do
       Phase,
       QueueItem,
       QueueMonitor,
-      QueueState
+      QueueState,
+      Wiring,
+      Wiring.Proposal
     ]
 
   @moduledoc """
@@ -39,6 +42,10 @@ defmodule MediaCentaur.Downloads do
       `QueueItem` against its history (`HealthHistory`) into one of the
       `Health.status/0` grades. Read by Acquisition's Pursuits subsystem
       on every tick.
+
+    * **The stack's wiring** — `Wiring` reads the file `prowlarr-stack`
+      writes and turns a difference from the saved connection settings
+      into a `Wiring.Proposal` a person accepts or declines.
 
   Does NOT own:
 

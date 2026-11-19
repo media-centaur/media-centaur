@@ -2,7 +2,9 @@ defmodule MediaCentaurWeb.SetupLive do
   @moduledoc """
   Setup Tour wizard at `/setup`. Walks the user through every dependency
   the app cares about — media directories, TMDB, mpv, ffprobe, Prowlarr,
-  download client. Auto-launched on first run by `SetupRedirect`, also
+  download client. The Prowlarr step shows the stack's wiring proposal
+  while there is one (`Downloads.Wiring`): one accept there configures
+  Prowlarr and both clients. Auto-launched on first run by `SetupRedirect`, also
   reachable anytime from Settings → Overview.
 
   Step state lives in the URL query string (`?step=<id>`), so browser
@@ -16,8 +18,10 @@ defmodule MediaCentaurWeb.SetupLive do
   use MediaCentaurWeb, :live_view
 
   import MediaCentaurWeb.Components.Settings, only: [settings_field: 1, settings_input: 1]
+  import MediaCentaurWeb.Components.Settings.WiringProposal
 
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Downloads.Wiring
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
   alias MediaCentaurWeb.Live.Subscriptions
@@ -42,6 +46,7 @@ defmodule MediaCentaurWeb.SetupLive do
      assign(socket,
        current_step: hd(@step_order),
        probes: [],
+       wiring: :none,
        integration_health: IntegrationHealth.all_statuses()
      )}
   end
@@ -51,7 +56,7 @@ defmodule MediaCentaurWeb.SetupLive do
     probes = Probes.all(probe_input())
     step_id = parse_step(params["step"])
 
-    {:noreply, assign(socket, probes: probes, current_step: step_id)}
+    {:noreply, assign(socket, probes: probes, current_step: step_id, wiring: Wiring.proposal())}
   end
 
   defp parse_step(nil), do: hd(@step_order)
@@ -226,6 +231,36 @@ defmodule MediaCentaurWeb.SetupLive do
 
         {:noreply, put_flash(socket, :info, flash)}
     end
+  end
+
+  # ---------------------------------------------------------------------------
+  # The stack's wiring (`Downloads.Wiring`), offered on the Prowlarr step.
+  # Accept saves Prowlarr and both clients through the form's writer and
+  # verifies each; the step then advances on Prowlarr's `:ok` like a save.
+  # ---------------------------------------------------------------------------
+
+  def handle_event("accept_wiring", %{"digest" => digest}, socket) do
+    case Wiring.accept(digest) do
+      {:ok, subjects} ->
+        Enum.each(subjects, &IntegrationHealth.verify/1)
+
+        {:noreply,
+         socket
+         |> refresh_probes()
+         |> assign(wiring: Wiring.proposal())
+         |> put_flash(:info, "Saved the connection settings from prowlarr-stack. Verifying…")}
+
+      :stale ->
+        {:noreply,
+         socket
+         |> assign(wiring: Wiring.proposal())
+         |> put_flash(:info, "prowlarr-stack's settings changed. Nothing was saved; check them again.")}
+    end
+  end
+
+  def handle_event("decline_wiring", %{"digest" => digest}, socket) do
+    Wiring.decline(digest)
+    {:noreply, assign(socket, wiring: Wiring.proposal())}
   end
 
   @impl true
@@ -478,6 +513,7 @@ defmodule MediaCentaurWeb.SetupLive do
           step_index={@step_index}
           total={@total}
           blocked?={@blocked?}
+          wiring={@wiring}
           armed_dir={ArmGesture.armed_target(@armed_gesture, "setup:remove_media_dir")}
         />
       </div>
@@ -519,6 +555,10 @@ defmodule MediaCentaurWeb.SetupLive do
   attr :armed_dir, :string,
     default: nil,
     doc: "the media directory whose Remove is armed (`ArmGesture`), or nil."
+
+  attr :wiring, :any,
+    default: :none,
+    doc: "`Downloads.Wiring.proposal/0`, drawn on the Prowlarr step."
 
   defp step_for(%{step: :welcome} = assigns) do
     ~H"""
@@ -642,6 +682,7 @@ defmodule MediaCentaurWeb.SetupLive do
       blocked?={@blocked?}
     >
       <:form>
+        <.wiring_proposal :if={@wiring != :none} wiring={@wiring} />
         <form
           id="setup-step-prowlarr-form"
           phx-submit="setup:save_integration"

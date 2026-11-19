@@ -30,44 +30,60 @@ Config storage is flat keys in the Settings DB, set in-app only (never TOML —
 credentials must not land in dotfiles or backups): `download_client_*` is the
 torrent slot, `usenet_download_client_*` the usenet slot.
 
-## The prowlarr-stack handoff (manual today; the wiring bundle is designed)
+## The prowlarr-stack handoff
 
-**Media Centaur exposes no setup API, and nothing in `prowlarr-stack` writes
-configuration into it.** The handoff is manual, in three parts:
-
-1. **Stack side** — `prowlarr-stack/./setup` brings up Prowlarr + qBittorrent +
-   SABnzbd, registers both as Prowlarr download clients, auto-generates the
-   SABnzbd API key into the stack's `.env` (`SABNZBD_API_KEY`), and **prints**
-   the coordinates for the user to enter in MC.
-2. **MC pull** — Settings → Acquisition → *Detect from Prowlarr* reads
-   Prowlarr's `/api/v1/downloadclient` and pre-fills each detected client into
-   its protocol slot's form (`ClientConfig.protocol_for_type/1` routes them).
-   Prowlarr deliberately never returns credentials.
-3. **User** — reviews URLs (Prowlarr often reports Docker-internal hostnames),
-   enters the qBittorrent password / SABnzbd API key, saves, and runs each
-   slot's *Test connection* (readiness is per-slot).
-
-**The replacement is designed and has no code yet**
+**The stack writes a file; Media Centaur reads it and a person accepts.**
+Media Centaur exposes no setup API and never runs docker
 ([ADR-052](../decisions/architecture/2026-05-31-052-download-stack-control-plane.md),
-amended 2026-11-19; the `download-stack-control-plane` campaign, a local file
-not in the repository):
+amended 2026-11-19).
 
-* The stack writes a versioned **wiring bundle** to a file only its user can
-  read, at the end of every `./setup` run: the Prowlarr address and key, both
-  protocol slots with their credentials, and the completed directory, with
-  addresses as the host reaches them.
-* Media Centaur reads the bundle and compares it with its saved settings. A
-  difference is shown in Settings → Acquisition as a **proposal**; accepting
-  it saves Prowlarr and both slots and runs each connection test. Nothing is
-  saved without the accept.
-* There is no endpoint for it. Loopback is not a trusted address
+1. **Stack side** — at the end of every `./setup` run (install,
+   `--reconfigure`, `./update`, `./restore`) `prowlarr-stack` writes the
+   **wiring file**, `${XDG_STATE_HOME:-~/.local/state}/prowlarr-stack/wiring.json`,
+   directory 700 and file 600: the Prowlarr address and key, both protocol
+   slots with their credentials, and the completed directory, with
+   `127.0.0.1` addresses and the published ports. The schema (format 1) is in
+   the `MediaCentaur.Downloads.Wiring` moduledoc and in the stack's
+   `docs/architecture.md`, "Wiring file".
+2. **Media Centaur** — `Downloads.Wiring.proposal/0` reads the file and asks
+   `Capabilities.integration_changes/2` what a save of its values would
+   change. A difference is a `Wiring.Proposal`, drawn by
+   `Components.Settings.WiringProposal` at the top of Settings → Acquisition
+   and on the setup flow's Prowlarr step: the addresses, which fields change
+   (never a credential), and whether the completed directory is inside a
+   media directory.
+3. **The person** — *Accept and test* saves Prowlarr and both slots through
+   `Capabilities.save_integration/2` (the form's writer) and verifies each
+   connection. *Decline* records the wiring's values as declined, so the card
+   returns only when a value changes.
+
+Rules the code holds:
+
+* The wiring is taken whole or not at all. An unknown format, a missing
+  field, a client type with no driver, or a file another user can write is
+  stated on the card and changes nothing. A slot the file omits is left alone.
+* Accept applies the file only while it still holds the values the card
+  showed.
+* There is no endpoint for wiring. Loopback is not a trusted address
   ([ADR-085](../decisions/architecture/2026-11-09-085-the-local-api-is-admitted-by-its-key.md)),
-  so do not add a receiver under `/api` or anywhere else, and do not grow an
-  ad-hoc version from a setup script; build it as that campaign's milestones.
+  so do not add a receiver under `/api` or anywhere else. Trust is file
+  ownership.
+* A showcase-mode instance reads no wiring; the test environment points the
+  path (`:stack_wiring_path`) at a file that does not exist.
+* The file is read when Settings → Acquisition or the setup step loads.
+  Nothing watches it.
 
-Until then: **when either repo grows an integration surface (a new client, a
-new credential, a new service), this section and the checklist below are the
-places to update.**
+**Without the stack** (a person's own Prowlarr), the handoff is by hand:
+Settings → Acquisition → *Detect from Prowlarr* reads Prowlarr's
+`/api/v1/downloadclient` and pre-fills each detected client into its slot's
+form (`ClientConfig.protocol_for_type/1` routes them). Prowlarr never returns
+credentials and often reports Docker-internal hostnames, so the person reviews
+the address, enters the credential, saves, and runs each slot's test.
+
+**When either repo grows an integration surface (a new client, a new
+credential, a new service), the wiring format, this section and the checklist
+below are the places to update.** A new field the app must read is a new
+format number; the app refuses a format it does not know.
 
 ## Checklist: adding a download client or protocol
 
@@ -106,7 +122,8 @@ the definition of done for the next driver (e.g. NZBGet, Transmission):
       applies.
 
 **Cross-repo & docs**
-- [ ] `prowlarr-stack`: service in the compose file, Prowlarr registration,
+- [ ] `prowlarr-stack`: the slot in the wiring file (`Downloads.Wiring`),
+      service in the compose file, Prowlarr registration,
       completed dir inside MC's watched paths, VPN placement, `./setup`
       output + `.env` keys.
 - [ ] Wiki: `Download-Clients.md` (table row + setup section),

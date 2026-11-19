@@ -53,6 +53,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Features
   alias MediaCentaurWeb.Components.FeatureOff
   alias MediaCentaur.Downloads.ClientConfig
+  alias MediaCentaur.Downloads.Wiring
   alias MediaCentaur.Watcher
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Pipeline
@@ -272,7 +273,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(remembered_matches: [])
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(blank_extra_names_count: 0)
-     |> assign(connections: IntegrationHealth.all_statuses(), editing: nil)
+     |> assign(connections: IntegrationHealth.all_statuses(), editing: nil, wiring: :none)
      |> assign(auto_grab: %AutoGrabSettings{})
      |> assign(tmdb_missing: false)
      |> assign(
@@ -592,6 +593,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       missing_images_summary: MediaCentaur.Status.Views.overview().missing_images,
       blank_extra_names_count: Maintenance.blank_extra_names_count(),
       connections: IntegrationHealth.all_statuses(),
+      wiring: Wiring.proposal(),
       auto_grab: AutoGrabSettings.load(),
       planning_mode: PlanningMode.value(),
       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
@@ -1390,7 +1392,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("save_connection", %{"connection" => id} = params, socket) do
     subject = connection_id(id)
     changed? = Capabilities.save_integration(subject, params)
-    socket = socket |> after_save(subject, changed?) |> assign(config: load_config())
+
+    socket =
+      socket |> after_save(subject, changed?) |> assign(config: load_config(), wiring: Wiring.proposal())
 
     case params["_action"] do
       "test" ->
@@ -1413,8 +1417,43 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply,
      socket
      |> after_save(subject, true)
-     |> assign(editing: nil, config: load_config())
+     |> assign(editing: nil, config: load_config(), wiring: Wiring.proposal())
      |> put_flash(:info, "#{connection_name(subject)} removed")}
+  end
+
+  # --- The stack's wiring (`Downloads.Wiring`) ----------------------------
+
+  # Accept saves through the form's writer, then asks the owner to verify
+  # each connection, as Save and test does. A file that changed since the
+  # card was drawn saves nothing: the card redraws with what it holds now.
+  def handle_event("accept_wiring", %{"digest" => digest}, socket) do
+    case Wiring.accept(digest) do
+      {:ok, subjects} ->
+        Enum.each(subjects, &IntegrationHealth.verify/1)
+
+        {:noreply,
+         socket
+         |> assign(
+           config: load_config(),
+           wiring: Wiring.proposal(),
+           editing: nil,
+           detected_download_client: nil,
+           detected_usenet_client: nil,
+           download_client_detect_status: nil
+         )
+         |> put_flash(:info, "Saved the connection settings from prowlarr-stack")}
+
+      :stale ->
+        {:noreply,
+         socket
+         |> assign(wiring: Wiring.proposal())
+         |> put_flash(:info, "prowlarr-stack's settings changed. Nothing was saved; check them again.")}
+    end
+  end
+
+  def handle_event("decline_wiring", %{"digest" => digest}, socket) do
+    Wiring.decline(digest)
+    {:noreply, assign(socket, wiring: Wiring.proposal())}
   end
 
   def handle_event("review_detected", %{"connection" => id}, socket),
@@ -2277,6 +2316,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 letterboxd_links={@letterboxd_links}
                 features={@features}
                 connections={@connections}
+                wiring={@wiring}
                 editing={@editing}
                 auto_grab={@auto_grab}
                 download_client_detect_status={@download_client_detect_status}
@@ -2522,6 +2562,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     ~H"""
     <AcquisitionSection.render
       config={@config}
+      wiring={@wiring}
       editing={@editing}
       rows={@rows}
       prowlarr_configured={@prowlarr_configured}

@@ -336,4 +336,140 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       assert await_test(view, :tmdb) =~ "Connected"
     end
   end
+
+  describe "the stack's wiring proposal" do
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "wiring.json")
+      Application.put_env(:media_centaur, :stack_wiring_path, path)
+      %{wiring_path: path}
+    end
+
+    defp write_wiring(path, overrides \\ %{}) do
+      wiring =
+        Map.merge(
+          %{
+            "format" => 1,
+            "stack_version" => "1.5.0",
+            "prowlarr" => %{"url" => "http://127.0.0.1:9696", "api_key" => "prowlarr-key"},
+            "torrent" => %{
+              "type" => "qbittorrent",
+              "url" => "http://127.0.0.1:8080",
+              "username" => "admin",
+              "password" => "torrent-password"
+            },
+            "usenet" => %{
+              "type" => "sabnzbd",
+              "url" => "http://127.0.0.1:8085",
+              "api_key" => "usenet-key"
+            },
+            "completed_dir" => "/mnt/videos/completed"
+          },
+          overrides
+        )
+
+      File.write!(path, JSON.encode!(wiring))
+    end
+
+    test "no card without a wiring file", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      refute has_element?(view, "#wiring-proposal")
+    end
+
+    test "lists the three connections and the completed directory", %{conn: conn, wiring_path: path} do
+      write_wiring(path)
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      assert has_element?(view, "#wiring-prowlarr", "http://127.0.0.1:9696")
+      assert has_element?(view, "#wiring-download_client", "http://127.0.0.1:8080")
+      assert has_element?(view, "#wiring-usenet_download_client", "http://127.0.0.1:8085")
+      assert has_element?(view, "#wiring-completed-dir", "/mnt/videos/completed")
+    end
+
+    test "Accept saves every connection, tests each, and the card leaves", %{
+      conn: conn,
+      wiring_path: path
+    } do
+      write_wiring(path)
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view |> element("#wiring-accept") |> render_click()
+      await_test(view, :prowlarr)
+      await_test(view, :download_client)
+      html = await_test(view, :usenet_download_client)
+
+      refute has_element?(view, "#wiring-proposal")
+      assert MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key)) == "prowlarr-key"
+      assert Config.get(:download_client_url) == "http://127.0.0.1:8080"
+      assert Config.get(:usenet_download_client_url) == "http://127.0.0.1:8085"
+      assert has_element?(view, "#connection-prowlarr", "Connected")
+      assert has_element?(view, "#connection-usenet_download_client", "Connected")
+      assert html =~ "Saved the connection settings from prowlarr-stack"
+    end
+
+    test "Decline removes the card and saves nothing; it stays away on return", %{
+      conn: conn,
+      wiring_path: path
+    } do
+      write_wiring(path)
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view |> element("#wiring-decline") |> render_click()
+
+      refute has_element?(view, "#wiring-proposal")
+      assert Config.get(:prowlarr_url) == nil
+
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+      refute has_element?(view, "#wiring-proposal")
+    end
+
+    test "a file that changed after the card was drawn saves nothing and redraws", %{
+      conn: conn,
+      wiring_path: path
+    } do
+      write_wiring(path)
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      write_wiring(path, %{
+        "prowlarr" => %{"url" => "http://127.0.0.1:9999", "api_key" => "prowlarr-key"}
+      })
+
+      html = view |> element("#wiring-accept") |> render_click()
+
+      assert html =~ "Nothing was saved"
+      assert has_element?(view, "#wiring-prowlarr", "http://127.0.0.1:9999")
+      assert Config.get(:prowlarr_url) == nil
+    end
+
+    test "saving a connection by hand to the same values removes the card", %{
+      conn: conn,
+      wiring_path: path
+    } do
+      write_wiring(path, %{"torrent" => nil, "usenet" => nil})
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+      assert has_element?(view, "#wiring-proposal")
+
+      view |> element("#connection-prowlarr-setup") |> render_click()
+
+      view
+      |> form("#connection-prowlarr-form", %{
+        "prowlarr_url" => "http://127.0.0.1:9696",
+        "prowlarr_api_key" => "prowlarr-key"
+      })
+      |> render_submit(%{"_action" => "save"})
+
+      refute has_element?(view, "#wiring-proposal")
+    end
+
+    test "an unknown format states the reason and offers no accept", %{conn: conn, wiring_path: path} do
+      write_wiring(path, %{"format" => 2})
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      assert has_element?(view, "#wiring-error", "format 2")
+      refute has_element?(view, "#wiring-accept")
+      assert Config.get(:prowlarr_url) == nil
+    end
+  end
 end

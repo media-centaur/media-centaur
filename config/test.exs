@@ -101,3 +101,8 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# No test reads the wiring file a real `prowlarr-stack` install wrote for
+# this user (`Downloads.Wiring`). A test that needs one points this at a
+# file of its own.
+config :media_centaur, :stack_wiring_path, "/nonexistent/prowlarr-stack/wiring.json"

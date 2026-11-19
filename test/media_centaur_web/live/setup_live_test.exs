@@ -275,4 +275,69 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       assert Config.get(:setup_wizard_dismissed) == true
     end
   end
+
+  describe "the stack's wiring on the Prowlarr step" do
+    @describetag :tmp_dir
+
+    defmodule OkVerifier do
+      @behaviour MediaCentaur.IntegrationHealth.Verifier
+      @impl true
+      def run(_id), do: :ok
+    end
+
+    setup %{tmp_dir: tmp_dir} do
+      path = Path.join(tmp_dir, "wiring.json")
+      Application.put_env(:media_centaur, :stack_wiring_path, path)
+
+      File.write!(
+        path,
+        JSON.encode!(%{
+          "format" => 1,
+          "stack_version" => "1.5.0",
+          "prowlarr" => %{"url" => "http://127.0.0.1:9696", "api_key" => "prowlarr-key"},
+          "torrent" => %{
+            "type" => "qbittorrent",
+            "url" => "http://127.0.0.1:8080",
+            "username" => "admin",
+            "password" => "torrent-password"
+          },
+          "usenet" => %{"type" => "sabnzbd", "url" => "http://127.0.0.1:8085", "api_key" => "usenet-key"},
+          "completed_dir" => "/mnt/videos/completed"
+        })
+      )
+
+      Application.put_env(:media_centaur, :integration_health_verifier, OkVerifier)
+      start_supervised!(MediaCentaur.IntegrationHealth)
+      :ok
+    end
+
+    test "one accept configures Prowlarr and both clients and moves on", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=prowlarr")
+      assert has_element?(view, "#wiring-usenet_download_client", "http://127.0.0.1:8085")
+
+      view |> element("#wiring-accept") |> render_click()
+
+      assert_patch(view, "/setup?step=download_client", 1_000)
+      assert Config.get(:prowlarr_url) == "http://127.0.0.1:9696"
+      assert Config.get(:download_client_url) == "http://127.0.0.1:8080"
+      assert Config.get(:usenet_download_client_url) == "http://127.0.0.1:8085"
+      refute has_element?(view, "#wiring-proposal")
+    end
+
+    test "Decline leaves the step's own form and saves nothing", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=prowlarr")
+
+      view |> element("#wiring-decline") |> render_click()
+
+      refute has_element?(view, "#wiring-proposal")
+      assert has_element?(view, "#setup-step-prowlarr-form")
+      assert Config.get(:prowlarr_url) == nil
+    end
+
+    test "no other step shows the card", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=tmdb")
+
+      refute has_element?(view, "#wiring-proposal")
+    end
+  end
 end
