@@ -30,11 +30,10 @@ Config storage is flat keys in the Settings DB, set in-app only (never TOML —
 credentials must not land in dotfiles or backups): `download_client_*` is the
 torrent slot, `usenet_download_client_*` the usenet slot.
 
-## The prowlarr-stack bootstrap contract (no API — deliberate gap)
+## The prowlarr-stack handoff (manual today; the wiring bundle is designed)
 
-**Media Centaur exposes no local setup/bootstrap API.** Nothing in
-`prowlarr-stack` writes configuration into MC. Anyone extending the stack↔MC integration should know
-the handoff is manual, in three parts:
+**Media Centaur exposes no setup API, and nothing in `prowlarr-stack` writes
+configuration into it.** The handoff is manual, in three parts:
 
 1. **Stack side** — `prowlarr-stack/./setup` brings up Prowlarr + qBittorrent +
    SABnzbd, registers both as Prowlarr download clients, auto-generates the
@@ -48,16 +47,27 @@ the handoff is manual, in three parts:
    enters the qBittorrent password / SABnzbd API key, saves, and runs each
    slot's *Test connection* (readiness is per-slot).
 
-The API **is designed** — it is P4 ("Provisioning handshake") of the
-`download-stack-control-plane` campaign (a local campaign file, not in the
-repository), backed by
-[ADR-052](../decisions/architecture/2026-05-31-052-download-stack-control-plane.md):
-a loopback-only receiver that stages a proposed wiring bundle (both protocol
-slots, credentials included) behind a confirm-in-MC card. It has **no code
-yet** — don't go looking for it, and don't grow an ad-hoc version from a
-setup script; build it as that campaign phase. Until then: **when either repo
-grows an integration surface (a new client, a new credential, a new service),
-this contract and the checklist below are the places to update.**
+**The replacement is designed and has no code yet**
+([ADR-052](../decisions/architecture/2026-05-31-052-download-stack-control-plane.md),
+amended 2026-11-19; the `download-stack-control-plane` campaign, a local file
+not in the repository):
+
+* The stack writes a versioned **wiring bundle** to a file only its user can
+  read, at the end of every `./setup` run: the Prowlarr address and key, both
+  protocol slots with their credentials, and the completed directory, with
+  addresses as the host reaches them.
+* Media Centaur reads the bundle and compares it with its saved settings. A
+  difference is shown in Settings → Acquisition as a **proposal**; accepting
+  it saves Prowlarr and both slots and runs each connection test. Nothing is
+  saved without the accept.
+* There is no endpoint for it. Loopback is not a trusted address
+  ([ADR-085](../decisions/architecture/2026-11-09-085-the-local-api-is-admitted-by-its-key.md)),
+  so do not add a receiver under `/api` or anywhere else, and do not grow an
+  ad-hoc version from a setup script; build it as that campaign's milestones.
+
+Until then: **when either repo grows an integration surface (a new client, a
+new credential, a new service), this section and the checklist below are the
+places to update.**
 
 ## Checklist: adding a download client or protocol
 

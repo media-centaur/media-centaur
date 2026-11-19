@@ -41,7 +41,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 049 | 2026-05-22 | [Testing principles: a well-managed, high-performance suite](architecture/2026-05-22-049-testing-principles.md) | accepted, amended 2026-09-08 |
 | 050 | 2026-05-23 | [A single presentable resolver decides movie-vs-collection for every surface](architecture/2026-05-23-050-presentable-resolver.md) | accepted |
 | 051 | 2026-05-29 | [Desktop LiveViews load on first paint; never flash fabricated values](architecture/2026-05-29-051-desktop-first-paint-loads-synchronously.md) | accepted |
-| 052 | 2026-05-31 | [The download stack owns its control plane; Media Centaur stays thin](architecture/2026-05-31-052-download-stack-control-plane.md) | accepted |
+| 052 | 2026-05-31 | [The download stack owns its control plane; Media Centaur stays thin](architecture/2026-05-31-052-download-stack-control-plane.md) | accepted, amended 2026-11-19 |
 | 053 | 2026-06-06 | [Input system reconciles only the focus it owns; unmanaged surfaces cede](architecture/2026-06-06-053-focus-ownership-boundary.md) | accepted |
 | 054 | 2026-06-08 | [External-dependency faults are subsystem health, not log incidents](architecture/2026-06-08-054-external-dependency-faults-are-subsystem-health.md) | accepted |
 | 055 | 2026-06-09 | [Composite pursuits — units carry the attempt thread](architecture/2026-06-09-055-composite-pursuits.md) | accepted |

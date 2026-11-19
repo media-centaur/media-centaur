@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-05-31
+amended: 2026-11-19
 ---
 # The download stack owns its control plane; Media Centaur stays thin
 
@@ -18,6 +19,15 @@ The download infrastructure (`prowlarr-stack`: VPN, Prowlarr, FlareSolverr, qBit
 4. **Three thin, versioned seams:** grab and search through Prowlarr plus direct client polling for progress; a provisioning handshake in which the installer POSTs a wiring bundle to Media Centaur on loopback, staged and applied only on an explicit confirm in the app; a read-only stack health endpoint the app consumes.
 
 Rejected: Media Centaur as the cockpit (Settings driving `docker compose`), because it couples the app's release cycle to every stack change and hands it docker privileges.
+
+**Amendment 2026-11-19.** Point 1 stands. Points 2 to 4 were written for a successor repository that was never built; `prowlarr-stack` matured in place instead (optional VPN and VPN routing changed by `./setup --reconfigure`, SABnzbd as the second client, migrations, `./update` gated on `./check`), and it is the stack.
+
+* **Point 2.** The stack's desired state is its `.env`, and `./setup` is the reconciler. No `stack.toml`, no `apply`, no successor repository.
+* **Point 3.** Restarting the clients with a live queue has not lost downloads, so the rule narrows to the change that can strand data: `./setup` refuses to change the download or completed directory while a client has a queue.
+* **Point 4, provisioning.** [ADR-085](2026-11-09-085-the-local-api-is-admitted-by-its-key.md) established that loopback is not a trusted address: a page in the host's browser can send a request to 127.0.0.1. The installer therefore sends nothing to the app. The stack writes a versioned wiring bundle to a file only its user can read; the app reads it, compares it with its saved settings, and shows a difference as a proposal that is applied only on an explicit confirm. Trust rests on file ownership and the confirm.
+* **Point 4, health.** The stack serves no health endpoint. The app reads the stack's condition through the connections it already has to Prowlarr and the download clients; `./check` remains the stack's verifier.
+
+None of this is built yet; `docs/download-clients.md` states the current handoff.
 
 ### Consequences
 
