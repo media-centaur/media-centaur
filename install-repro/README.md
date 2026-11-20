@@ -69,6 +69,16 @@ so `upgrade` from the latest release is a real version change. This proves an
 app or installer change before it is tagged. `in-app-update` runs only for
 `released`: it updates to GitHub's latest release.
 
+**Stack handoff.** `stack-handoff` runs only when `stack_ref` names a
+`prowlarr-stack` ref, on Linux: it installs Media Centaur, brings the stack up
+with its own `./setup --non-interactive` on the runner's Docker, and asserts
+that the app proposes Prowlarr and both download clients from the stack's
+wiring file, that accepting saves them, and that each connection test passes.
+
+```sh
+gh workflow run install-repro.yml -f source=branch -f platform=linux -f stack_ref=main --ref <branch>
+```
+
 **On a real machine:** the scenarios are plain scripts against the real
 installed paths. From a checkout, on a machine with no Media Centaur install:
 

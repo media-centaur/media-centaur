@@ -21,6 +21,10 @@ on:
         type: choice
         options: [released, branch]
         default: released
+      stack_ref:
+        description: "prowlarr-stack ref for the stack handoff scenario (Linux); empty skips it"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -160,6 +164,56 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: install-repro-${{ matrix.platform }}-lifecycle-${{ needs.resolve.outputs.tag }}
+          path: ${{ runner.temp }}/evidence
+          retention-days: 30
+
+  stack-handoff:
+    name: Stack handoff — linux (${{ needs.resolve.outputs.tag }}, prowlarr-stack ${{ inputs.stack_ref }})
+    needs: [resolve, build]
+    # The stack runs on Docker, so Linux only. build is skipped for source released.
+    if: ${{ !cancelled() && inputs.stack_ref != '' && inputs.platform != 'macos' && needs.resolve.result == 'success' && needs.build.result != 'failure' }}
+    runs-on: ubuntu-24.04
+    env:
+      MC_TAG: ${{ needs.resolve.outputs.tag }}
+      MC_SOURCE: ${{ needs.resolve.outputs.source }}
+      MC_STACK_SRC: ${{ github.workspace }}/prowlarr-stack-src
+      SCENARIOS: install-repro/scenarios
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out prowlarr-stack
+        uses: actions/checkout@v7
+        with:
+          repository: media-centaur/prowlarr-stack
+          ref: ${{ inputs.stack_ref }}
+          path: prowlarr-stack-src
+
+      - name: Install what the stack's setup needs
+        run: sudo apt-get update && sudo apt-get install -y sqlite3
+
+      - name: Fetch the branch build
+        if: needs.resolve.outputs.source == 'branch'
+        uses: actions/download-artifact@v8
+        with:
+          name: tarball-linux-x86_64
+          path: ${{ runner.temp }}/branch-build
+      - name: Point the scenarios at the branch build
+        if: needs.resolve.outputs.source == 'branch'
+        run: echo "MC_BRANCH_TARBALL=$(ls "$RUNNER_TEMP"/branch-build/*.tar.gz)" >> "$GITHUB_ENV"
+
+      - name: Runner environment
+        run: '"$SCENARIOS"/linux/environment'
+      - name: 9. Stack handoff
+        run: '"$SCENARIOS"/stack-handoff'
+
+      - name: Collect evidence
+        if: always()
+        run: '"$SCENARIOS"/linux/collect-evidence "$RUNNER_TEMP/evidence"'
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-repro-linux-stack-handoff-${{ needs.resolve.outputs.tag }}
           path: ${{ runner.temp }}/evidence
           retention-days: 30
 

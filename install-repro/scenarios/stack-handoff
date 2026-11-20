@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Scenario: with Media Centaur installed, prowlarr-stack's ./setup brings
+# the stack up and writes its wiring file; Media Centaur proposes the three
+# connections, accepting saves them, and each connection test passes with
+# no value typed or pasted. Linux only: the stack runs on Docker.
+#
+# MC_STACK_SRC is a checkout of prowlarr-stack at the ref under test.
+set -euo pipefail
+. "$(dirname "$0")/lib"
+require_tag
+[ -d "${MC_STACK_SRC:-}" ] || fail "MC_STACK_SRC does not name a prowlarr-stack checkout"
+
+STACK_DIR="$HOME/prowlarr-stack"
+WIRING_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/prowlarr-stack/wiring.json"
+mkdir -p "$SCENARIO_LOG_DIR"
+
+# Runs Elixir in the running app. Nothing passed here prints a credential.
+rpc() { "$INSTALL_ROOT/current/bin/media_centaur" rpc "$1"; }
+
+step "install Media Centaur $MC_TAG"
+install_release "$MC_TAG"
+assert_serving
+
+step "install the stack"
+cp -R "$MC_STACK_SRC" "$STACK_DIR"
+rm -rf "$STACK_DIR/.git"
+storage="$HOME/stack-storage"
+mkdir -p "$storage/downloads" "$storage/completed"
+( umask 077
+  cat > "$STACK_DIR/.env" <<ENV
+DOWNLOADS_DIR=$storage/downloads
+COMPLETED_DIR=$storage/completed
+ALLOW_NON_MOUNTPOINT=1
+ENV
+)
+( cd "$STACK_DIR" && ./setup --non-interactive ) 2>&1 | tee "$SCENARIO_LOG_DIR/stack-setup.log"
+docker ps -a --format '{{.Names}}\t{{.Status}}' | tee "$SCENARIO_LOG_DIR/stack-containers.txt"
+[ -f "$WIRING_FILE" ] || fail "./setup wrote no wiring file at $WIRING_FILE"
+[ "$(stat -c %a "$WIRING_FILE")" = 600 ] || fail "the wiring file is not mode 600"
+pass "the stack is up and wrote its wiring file"
+
+step "Media Centaur proposes the stack's connections"
+proposal=$(rpc '
+  MediaCentaur.Features.set(:acquisition, true)
+
+  case MediaCentaur.Downloads.Wiring.proposal() do
+    {:proposal, proposal} ->
+      IO.puts("connections: " <> Enum.map_join(proposal.connections, ",", &to_string(&1.id)))
+      IO.puts("digest: " <> proposal.digest)
+
+    other ->
+      IO.inspect(other, label: "proposal")
+  end
+')
+printf '%s\n' "$proposal" | grep -v '^digest: '
+printf '%s\n' "$proposal" | grep -qx 'connections: prowlarr,download_client,usenet_download_client' ||
+    fail "the proposal does not carry Prowlarr and both download clients"
+digest=$(printf '%s\n' "$proposal" | sed -n 's/^digest: //p')
+pass "the proposal carries Prowlarr and both download clients"
+
+step "accept"
+accepted=$(rpc "
+  case MediaCentaur.Downloads.Wiring.accept(\"$digest\") do
+    {:ok, subjects} ->
+      Enum.each(subjects, &MediaCentaur.IntegrationHealth.verify/1)
+      IO.puts(\"accepted: \" <> Enum.map_join(subjects, \",\", &to_string/1))
+
+    other ->
+      IO.inspect(other, label: \"accept\")
+  end
+")
+printf '%s\n' "$accepted"
+printf '%s\n' "$accepted" | grep -qx 'accepted: prowlarr,download_client,usenet_download_client' ||
+    fail "accept did not save the three connections"
+pass "accept saved the three connections"
+
+step "each connection test passes"
+all_healthy() {
+    rpc '
+      healthy? =
+        Enum.all?(
+          [:prowlarr, :download_client, :usenet_download_client],
+          &MediaCentaur.IntegrationHealth.healthy?/1
+        )
+
+      IO.puts("healthy: #{healthy?}")
+    ' | grep -qx 'healthy: true'
+}
+report_statuses() {
+    rpc '
+      for id <- [:prowlarr, :download_client, :usenet_download_client] do
+        status = MediaCentaur.IntegrationHealth.status(id)
+        IO.puts("#{id}: #{inspect(status && status.test_state)}")
+      end
+    ' || true
+}
+trap report_statuses EXIT
+wait_until "Prowlarr and both download clients test as connected" 120 all_healthy
+trap - EXIT
+
+step "nothing is left to propose"
+rest=$(rpc 'IO.inspect(MediaCentaur.Downloads.Wiring.proposal(), label: "proposal")')
+[ "$rest" = "proposal: :none" ] || fail "a proposal remains after accept: $rest"
+pass "no proposal remains"
+
+step "the completed directory is reported while it is outside the media directories"
+status=$(rpc '
+  case MediaCentaur.Downloads.Wiring.completed_dir_status() do
+    {reason, dir} -> IO.puts("completed_dir: #{reason} #{dir}")
+    :ok -> IO.puts("completed_dir: ok")
+  end
+')
+[ "$status" = "completed_dir: not_watched $storage/completed" ] ||
+    fail "expected the completed directory reported as not watched, got: $status"
+pass "the completed directory is reported as not watched"
