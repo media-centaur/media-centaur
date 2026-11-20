@@ -44,7 +44,17 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      # The stack's own writer produces the wiring file that
+      # wiring_stack_agreement_test.exs feeds to Downloads.Wiring.
+      - name: Check out prowlarr-stack
+        uses: actions/checkout@v7
+        with:
+          repository: media-centaur/prowlarr-stack
+          path: prowlarr-stack
+
       - name: Run precommit checks
+        env:
+          PROWLARR_STACK_DIR: ${{ github.workspace }}/prowlarr-stack
         # Suite-time gate (ADR-049 Principle 1): a hung suite must fail the
         # build in minutes, not run to the GitHub Actions ceiling. Normal
         # precommit is ~3-4 min on a warm cache; 900s is generous headroom

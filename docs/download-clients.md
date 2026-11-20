@@ -85,6 +85,13 @@ credential, a new service), the wiring format, this section and the checklist
 below are the places to update.** A new field the app must read is a new
 format number; the app refuses a format it does not know.
 
+`test/media_centaur/downloads/wiring_stack_agreement_test.exs` holds the two
+sides together: it runs the stack's own `write_wiring` and feeds the file to
+`Downloads.Wiring`. It needs a `prowlarr-stack` checkout beside this
+repository, or at `PROWLARR_STACK_DIR`; CI checks out the stack's `main`. A
+format change therefore lands in the stack first, and this repository's CI is
+red until the reader follows.
+
 ## Checklist: adding a download client or protocol
 
 Every surface the SABnzbd/usenet work touched, in dependency order. Use it as

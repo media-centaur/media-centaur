@@ -385,7 +385,7 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       assert has_element?(view, "#wiring-prowlarr", "http://127.0.0.1:9696")
       assert has_element?(view, "#wiring-download_client", "http://127.0.0.1:8080")
       assert has_element?(view, "#wiring-usenet_download_client", "http://127.0.0.1:8085")
-      assert has_element?(view, "#wiring-completed-dir", "/mnt/videos/completed")
+      assert has_element?(view, "#wiring-proposal", "/mnt/videos/completed")
     end
 
     test "Accept saves every connection, tests each, and the card leaves", %{
@@ -467,7 +467,7 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       write_wiring(path, %{"format" => 2})
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
-      assert has_element?(view, "#wiring-error", "format 2")
+      assert has_element?(view, "#wiring-proposal", "format 2")
       refute has_element?(view, "#wiring-accept")
       assert Config.get(:prowlarr_url) == nil
     end
