@@ -70,8 +70,17 @@ Rules the code holds:
   ownership.
 * A showcase-mode instance reads no wiring; the test environment points the
   path (`:stack_wiring_path`) at a file that does not exist.
-* The file is read when Settings → Acquisition or the setup step loads.
-  Nothing watches it.
+* The file is read when Settings → Acquisition or the setup step loads, and
+  by the Downloads health probe every five minutes. Nothing watches it.
+* While the wiring is in use (every connection it carries is saved as
+  written), `Downloads.IncidentContext` reports its completed directory when
+  it does not exist or lies outside every media directory
+  (`Wiring.completed_dir_status/0`). The directory is not saved as a
+  setting; the file stays its one record.
+* A dropped VPN tunnel is the stack's to handle: it stops a tunneled
+  qBittorrent while gluetun is unhealthy (`scripts/tunnel-watch`), so the app
+  sees an unreachable client. qBittorrent's own `connection_status` cannot
+  tell a dead tunnel from a healthy one without port forwarding.
 
 **Without the stack** (a person's own Prowlarr), the handoff is by hand:
 Settings → Acquisition → *Detect from Prowlarr* reads Prowlarr's

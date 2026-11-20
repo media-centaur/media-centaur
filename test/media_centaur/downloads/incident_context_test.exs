@@ -65,4 +65,24 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
                IncidentContext.decide(state(:auth_failed), now(), @grace)
     end
   end
+
+  describe "completed_dir_fault/1 — where finished downloads land" do
+    test "a directory that exists inside a media directory → :ok" do
+      assert IncidentContext.completed_dir_fault(:ok) == :ok
+    end
+
+    test "a missing directory → warning naming it" do
+      assert {:fault, :completed_dir_missing, :warning, %{headline: headline}} =
+               IncidentContext.completed_dir_fault({:missing, "/mnt/sample/completed"})
+
+      assert headline == "Finished downloads directory is missing"
+    end
+
+    test "a directory outside the media directories → warning" do
+      assert {:fault, :completed_dir_not_watched, :warning, %{headline: headline}} =
+               IncidentContext.completed_dir_fault({:not_watched, "/mnt/sample/completed"})
+
+      assert headline == "Finished downloads land outside the media directories"
+    end
+  end
 end

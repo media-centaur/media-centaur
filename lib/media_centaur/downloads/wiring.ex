@@ -26,7 +26,9 @@ defmodule MediaCentaur.Downloads.Wiring do
   the saved connection settings by asking `Capabilities` what a save
   would change; `accept/1` saves through `Capabilities.save_integration/2`,
   the writer the Settings form uses; `decline/1` marks these values as
-  declined so they are not proposed again. Trust is file ownership: there
+  declined so they are not proposed again. `completed_dir_status/0`
+  says whether the completed directory of a wiring in use exists inside a
+  media directory, for `Downloads.IncidentContext`. Trust is file ownership: there
   is no endpoint that stages or applies wiring.
 
   An instance in showcase mode reads no wiring: its Prowlarr and clients
@@ -139,6 +141,37 @@ defmodule MediaCentaur.Downloads.Wiring do
   def decline(digest) when is_binary(digest) do
     Settings.find_or_create_entry!(%{key: @declined_key, value: %{"digest" => digest}})
     :ok
+  end
+
+  @doc """
+  Whether finished downloads can be imported from where the stack puts
+  them: `{:missing, dir}` when the completed directory does not exist,
+  `{:not_watched, dir}` when it is outside every media directory. Judged
+  only while the wiring is in use, meaning every connection it carries is
+  saved as written; a wiring that is absent, unreadable, declined or only
+  proposed is `:ok`.
+
+  An unmounted directory that still exists as an empty mount point reads
+  as present.
+  """
+  @spec completed_dir_status() :: :ok | {:missing, String.t()} | {:not_watched, String.t()}
+  def completed_dir_status do
+    with {:ok, %__MODULE__{completed_dir: dir} = wiring} when is_binary(dir) <- read(path()),
+         true <- in_use?(wiring) do
+      cond do
+        not File.dir?(dir) -> {:missing, dir}
+        not watched?(dir) -> {:not_watched, dir}
+        true -> :ok
+      end
+    else
+      _not_judged -> :ok
+    end
+  end
+
+  defp in_use?(wiring) do
+    Enum.all?(forms(wiring), fn {subject, params} ->
+      Capabilities.integration_changes(subject, params) == []
+    end)
   end
 
   defp propose(wiring) do

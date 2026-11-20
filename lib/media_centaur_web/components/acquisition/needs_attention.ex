@@ -195,6 +195,26 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
     }
   end
 
+  def client_card({:fault, :completed_dir_missing, _severity, %{dir: dir}}) do
+    %{
+      title: "The finished downloads directory is missing",
+      detail:
+        "prowlarr-stack puts finished downloads in #{dir}, which does not exist. Check that its drive is mounted.",
+      text_class: "text-warning",
+      severity: :warning
+    }
+  end
+
+  def client_card({:fault, :completed_dir_not_watched, _severity, %{dir: dir}}) do
+    %{
+      title: "Finished downloads aren't imported",
+      detail:
+        "prowlarr-stack puts them in #{dir}, which is not inside a media directory. Add it under Settings → Library.",
+      text_class: "text-warning",
+      severity: :warning
+    }
+  end
+
   def client_card(_healthy), do: nil
 
   @doc """

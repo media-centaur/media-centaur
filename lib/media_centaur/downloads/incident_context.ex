@@ -2,7 +2,8 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   @moduledoc """
   The acquisition subsystem's download-client health probe — the `assess/0` the
   `ErrorReports.Evaluator` polls to own a single `:subsystem` incident for
-  download-client connectivity (ADR-054).
+  download-client connectivity and for the directory finished downloads land
+  in (ADR-054).
 
   ## Why this exists
 
@@ -31,6 +32,12 @@ defmodule MediaCentaur.Downloads.IncidentContext do
     * `:download_client_unreachable` (**warning**) — the client is graded
       `{:offline, since}` and the outage onset is older than the grace window.
 
+    * `:completed_dir_missing`, `:completed_dir_not_watched` (**warning**) —
+      the completed directory of the `prowlarr-stack` wiring in use does not
+      exist, or lies outside every media directory, so finished downloads are
+      never imported (`Downloads.Wiring.completed_dir_status/0`). Reported
+      only while the client is reachable: a connectivity fault comes first.
+
   `:not_configured` (no client set up) is never a fault.
 
   The decision is the pure `decide/3` over the producer-graded
@@ -47,6 +54,7 @@ defmodule MediaCentaur.Downloads.IncidentContext do
 
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Downloads.QueueState
+  alias MediaCentaur.Downloads.Wiring
 
   # How long a graded outage must have lasted before a connectivity warning
   # opens — long enough that a brief client restart never surfaces, short
@@ -60,7 +68,23 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   @spec assess() :: :ok | fault()
   @impl true
   def assess do
-    decide(QueueMonitor.state(), DateTime.utc_now(), @unreachable_grace_seconds)
+    with :ok <- decide(QueueMonitor.state(), DateTime.utc_now(), @unreachable_grace_seconds) do
+      completed_dir_fault(Wiring.completed_dir_status())
+    end
+  end
+
+  @doc "Pure fault decision over `Wiring.completed_dir_status/0`."
+  @spec completed_dir_fault(:ok | {:missing | :not_watched, String.t()}) :: :ok | fault()
+  def completed_dir_fault(:ok), do: :ok
+
+  def completed_dir_fault({:missing, dir}) do
+    {:fault, :completed_dir_missing, :warning,
+     %{headline: "Finished downloads directory is missing", dir: dir}}
+  end
+
+  def completed_dir_fault({:not_watched, dir}) do
+    {:fault, :completed_dir_not_watched, :warning,
+     %{headline: "Finished downloads land outside the media directories", dir: dir}}
   end
 
   @doc """

@@ -29,6 +29,29 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttentionTest do
       assert card.detail =~ "Settings → Acquisition"
     end
 
+    test "the completed directory is missing → warning, names the directory" do
+      card =
+        NeedsAttention.client_card(
+          {:fault, :completed_dir_missing, :warning, %{dir: "/mnt/sample/completed"}}
+        )
+
+      assert card.severity == :warning
+      assert card.title == "The finished downloads directory is missing"
+      assert card.detail =~ "/mnt/sample/completed"
+    end
+
+    test "the completed directory is outside the media directories → warning, points at Settings → Library" do
+      card =
+        NeedsAttention.client_card(
+          {:fault, :completed_dir_not_watched, :warning, %{dir: "/mnt/sample/completed"}}
+        )
+
+      assert card.severity == :warning
+      assert card.title == "Finished downloads aren't imported"
+      assert card.detail =~ "/mnt/sample/completed"
+      assert card.detail =~ "Settings → Library"
+    end
+
     test "Prowlarr cannot hand releases over → warning, points at Prowlarr's own client entry" do
       card = NeedsAttention.client_card(@handoff_failed)
 

@@ -230,6 +230,61 @@ defmodule MediaCentaur.Downloads.WiringTest do
     assert Wiring.proposal() == :none
   end
 
+  describe "completed_dir_status/0" do
+    defp watch(media_dirs) do
+      :persistent_term.put(
+        {Config, :config},
+        Map.put(:persistent_term.get({Config, :config}), :media_dirs, media_dirs)
+      )
+    end
+
+    defp write_with_completed_dir(path, dir) do
+      write(path, Map.put(@wiring, "completed_dir", dir))
+    end
+
+    test "ok without a wiring file" do
+      assert Wiring.completed_dir_status() == :ok
+    end
+
+    test "ok while the wiring is only proposed, not in use", %{path: path, tmp_dir: tmp_dir} do
+      write_with_completed_dir(path, Path.join(tmp_dir, "absent"))
+
+      assert Wiring.completed_dir_status() == :ok
+    end
+
+    test "ok when the directory exists inside a media directory", %{path: path, tmp_dir: tmp_dir} do
+      completed = Path.join(tmp_dir, "completed")
+      File.mkdir_p!(completed)
+      watch([tmp_dir])
+      write_with_completed_dir(path, completed)
+      {:ok, _subjects} = accept_current()
+
+      assert Wiring.completed_dir_status() == :ok
+    end
+
+    test "missing when the directory does not exist", %{path: path, tmp_dir: tmp_dir} do
+      completed = Path.join(tmp_dir, "completed")
+      watch([tmp_dir])
+      write_with_completed_dir(path, completed)
+      {:ok, _subjects} = accept_current()
+
+      assert Wiring.completed_dir_status() == {:missing, completed}
+    end
+
+    test "not watched when the directory is outside every media directory", %{
+      path: path,
+      tmp_dir: tmp_dir
+    } do
+      completed = Path.join(tmp_dir, "completed")
+      File.mkdir_p!(completed)
+      watch([Path.join(tmp_dir, "library")])
+      write_with_completed_dir(path, completed)
+      {:ok, _subjects} = accept_current()
+
+      assert Wiring.completed_dir_status() == {:not_watched, completed}
+    end
+  end
+
   defp accept_current do
     {:proposal, proposal} = Wiring.proposal()
     Wiring.accept(proposal.digest)
