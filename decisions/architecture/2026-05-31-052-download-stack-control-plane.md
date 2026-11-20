@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-05-31
-amended: 2026-11-19
+amended: 2026-11-20
 ---
 # The download stack owns its control plane; Media Centaur stays thin
 
@@ -27,7 +27,7 @@ Rejected: Media Centaur as the cockpit (Settings driving `docker compose`), beca
 * **Point 4, provisioning.** [ADR-085](2026-11-09-085-the-local-api-is-admitted-by-its-key.md) established that loopback is not a trusted address: a page in the host's browser can send a request to 127.0.0.1. The installer therefore sends nothing to the app. The stack writes a versioned wiring bundle to a file only its user can read; the app reads it, compares it with its saved settings, and shows a difference as a proposal that is applied only on an explicit confirm. Trust rests on file ownership and the confirm.
 * **Point 4, health.** The stack serves no health endpoint. The app reads the stack's condition through the connections it already has to Prowlarr and the download clients; `./check` remains the stack's verifier.
 
-None of this is built yet; `docs/download-clients.md` states the current handoff.
+**Amendment 2026-11-20.** The 2026-11-19 points are built, in both repositories, ahead of their releases: the stack writes the wiring file and `Downloads.Wiring` proposes it (point 4, provisioning); `./setup` refuses a storage path change while a client holds work (point 3). Two things were added under point 4, health. A dropped VPN tunnel is handled in the stack, which stops a tunneled qBittorrent while the tunnel is unhealthy so that the app sees an unreachable client: qBittorrent's own connection status does not distinguish a dead tunnel from a healthy one without port forwarding. And the app reports the wiring's completed directory when it is missing or outside the media directories. `docs/download-clients.md` states the handoff as built; the consequences below describe the state before 2026-11-19.
 
 ### Consequences
 
