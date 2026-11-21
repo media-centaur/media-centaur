@@ -1,5 +1,7 @@
 defmodule MediaCentaur.Showcase.StubsTest do
-  use MediaCentaur.Case, async: true
+  # Sync: a Prowlarr request reports its answer to `IntegrationAvailability`
+  # (`:persistent_term`), which the sandbox restores at check-in.
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
   alias MediaCentaur.Search.Prowlarr

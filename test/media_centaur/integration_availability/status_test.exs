@@ -17,15 +17,21 @@ defmodule MediaCentaur.IntegrationAvailability.StatusTest do
   end
 
   describe "fold/4" do
-    test "up to up is unchanged — the value is returned untouched" do
+    test "the first up observation dates the starting assumption, without a transition" do
       status = Status.initial(:prowlarr)
+      refute Status.observed?(status)
 
-      # The store writes nothing on an up observation of an up
+      assert {:unchanged, %Status{state: :up, observed_at: @t1} = observed} =
+               Status.fold(status, :up, @t1, [])
+
+      assert Status.observed?(observed)
+    end
+
+    test "a later up observation is unchanged — the value is returned untouched" do
+      # The store writes nothing on an up observation of an observed up
       # integration, so the value must not claim a fresher observation
       # than the one `:persistent_term` holds.
-      assert {:unchanged, ^status} = Status.fold(status, :up, @t1, [])
-
-      observed = %{status | observed_at: @t0}
+      observed = %{Status.initial(:prowlarr) | observed_at: @t0}
       assert {:unchanged, ^observed} = Status.fold(observed, :up, @t1, [])
     end
 

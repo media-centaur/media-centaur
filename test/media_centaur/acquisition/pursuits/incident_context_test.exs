@@ -16,6 +16,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContextTest do
     }
   end
 
+  defp unobserved(slot), do: %Status{integration: {:handoff, slot}, state: :up, observed_at: nil}
+
   defp up(slot), do: %Status{integration: {:handoff, slot}, state: :up, observed_at: @t0}
 
   describe "decide/3" do
@@ -23,10 +25,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContextTest do
       assert IncidentContext.decide([up(:usenet), up(:torrent)], @t0, @grace) == :ok
     end
 
-    test "a hand-off down inside the grace window is not yet a fault" do
+    test "a hand-off down inside the grace window is unknown: it neither opens nor closes an issue" do
       now = DateTime.add(@t0, 60, :second)
 
-      assert IncidentContext.decide([down(:usenet, @t0), up(:torrent)], now, @grace) == :ok
+      assert IncidentContext.decide([down(:usenet, @t0), up(:torrent)], now, @grace) ==
+               {:unknown, [:download_client_handoff_failed]}
+    end
+
+    test "hand-offs nobody has observed since the start are unknown, not up" do
+      assert IncidentContext.decide([unobserved(:usenet), unobserved(:torrent)], @t0, @grace) ==
+               {:unknown, [:download_client_handoff_failed]}
+    end
+
+    test "one hand-off observed up is enough when the other protocol is never used" do
+      assert IncidentContext.decide([unobserved(:usenet), up(:torrent)], @t0, @grace) == :ok
     end
 
     test "a hand-off down past the grace window is a warning" do
@@ -39,8 +51,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContextTest do
   end
 
   describe "assess/0 — reads the live hand-off availability" do
-    test "nothing observed yet is ok" do
-      assert IncidentContext.assess() == :ok
+    test "nothing observed yet is unknown" do
+      assert IncidentContext.assess() == {:unknown, [:download_client_handoff_failed]}
     end
 
     test "a hand-off down past the grace window faults" do
@@ -52,7 +64,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContextTest do
     test "a hand-off that has only just gone down does not fault yet" do
       report_handoff_down(:usenet, 10)
 
-      assert IncidentContext.assess() == :ok
+      assert IncidentContext.assess() == {:unknown, [:download_client_handoff_failed]}
     end
 
     test "the acquisition composite surfaces it as the component's condition" do

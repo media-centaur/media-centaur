@@ -22,6 +22,19 @@ defmodule MediaCentaur.Acquisition.IncidentContextTest do
       assert IncidentContext.worst([@client_auth_fault, @search_fault]) == @client_auth_fault
     end
 
+    test "with no fault, the probes that cannot yet tell hold their kinds together" do
+      assert IncidentContext.worst([
+               {:unknown, [:download_client_unreachable]},
+               :ok,
+               {:unknown, [:search_provider_unreachable]}
+             ]) == {:unknown, [:download_client_unreachable, :search_provider_unreachable]}
+    end
+
+    test "a fault outranks a probe that cannot yet tell" do
+      assert IncidentContext.worst([{:unknown, [:download_client_unreachable]}, @search_fault]) ==
+               @search_fault
+    end
+
     test "equal severity keeps the first probe's fault" do
       assert IncidentContext.worst([@client_fault, @search_fault]) == @client_fault
     end

@@ -40,6 +40,13 @@ defmodule MediaCentaur.Downloads.IncidentContext do
 
   `:not_configured` (no client set up) is never a fault.
 
+  **Unknown** (`{:unknown, kinds}`) — `:initializing` (not polled since the
+  start), a single missed poll, and an outage still inside the grace window
+  say neither "fault" nor "healthy": the evaluator keeps an already-open
+  client incident open and opens none. Only `:live` resolves it, so a
+  restart during an outage leaves one incident, not a resolve and a
+  re-open.
+
   Both client faults carry a `detail:` — one line per configured client
   (`QueueState.clients`) with its name, address, state, how long it has been
   offline, and the cause of its last failed poll — the evidence the issue view
@@ -72,8 +79,11 @@ defmodule MediaCentaur.Downloads.IncidentContext do
 
   @type fault :: {:fault, atom(), :warning | :error, map()}
 
+  # The client kinds `decide/3` can raise — the ones an unknown verdict holds.
+  @client_kinds [:download_client_auth_failed, :download_client_unreachable]
+
   @doc "Health probe polled by the diagnostics evaluator. Side-effect-free."
-  @spec assess() :: :ok | fault()
+  @spec assess() :: :ok | {:unknown, [atom()]} | fault()
   @impl true
   def assess do
     with :ok <- decide(QueueMonitor.state(), DateTime.utc_now(), @unreachable_grace_seconds) do
@@ -103,10 +113,11 @@ defmodule MediaCentaur.Downloads.IncidentContext do
     * `grace_seconds` — how long the graded outage must have lasted, measured
       from its onset, before a `:download_client_unreachable` warning opens.
 
-  Auth failures ignore the grace window; healthy, initializing, transient-blip
-  and unconfigured states never fault.
+  Auth failures ignore the grace window. `:live` and `:not_configured` are
+  `:ok`; initializing, a transient blip and an outage inside the grace window
+  are `{:unknown, kinds}`.
   """
-  @spec decide(QueueState.t(), DateTime.t(), pos_integer()) :: :ok | fault()
+  @spec decide(QueueState.t(), DateTime.t(), pos_integer()) :: :ok | {:unknown, [atom()]} | fault()
   def decide(%QueueState{connectivity: :auth_failed} = queue, now, _grace) do
     {:fault, :download_client_auth_failed, :error,
      %{headline: "Download client rejected the credentials", detail: detail(queue, now)}}
@@ -117,11 +128,14 @@ defmodule MediaCentaur.Downloads.IncidentContext do
       {:fault, :download_client_unreachable, :warning,
        %{headline: "Download client unreachable", detail: detail(queue, now)}}
     else
-      :ok
+      {:unknown, @client_kinds}
     end
   end
 
-  def decide(%QueueState{}, _now, _grace), do: :ok
+  def decide(%QueueState{connectivity: connectivity}, _now, _grace)
+      when connectivity in [:live, :not_configured], do: :ok
+
+  def decide(%QueueState{}, _now, _grace), do: {:unknown, @client_kinds}
 
   # One line per configured client, torrent slot first, so the text is
   # stable across polls: which client, at which address, in what state, and

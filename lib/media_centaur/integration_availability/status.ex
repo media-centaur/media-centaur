@@ -10,7 +10,9 @@ defmodule MediaCentaur.IntegrationAvailability.Status do
 
   `observed_at` is `nil` until something actually observes the
   integration: `initial/1` is the optimistic starting point, not an
-  observation, and must not claim one.
+  observation, and must not claim one. The first observation sets it,
+  an up one included, so `observed?/1` tells a health probe whether
+  "up" is evidence or only the starting assumption.
 
   Reasons: `:unreachable` (transport error, 5xx, timeout), `:rejected`
   (401/403 — misconfigured is as useless as dead for held work),
@@ -39,6 +41,10 @@ defmodule MediaCentaur.IntegrationAvailability.Status do
   @spec initial(integration()) :: t()
   def initial(integration), do: %__MODULE__{integration: integration, state: :up, observed_at: nil}
 
+  @doc "Whether anything has observed the integration since the start."
+  @spec observed?(t()) :: boolean()
+  def observed?(%__MODULE__{observed_at: observed_at}), do: observed_at != nil
+
   @spec up?(t()) :: boolean()
   def up?(%__MODULE__{state: :up}), do: true
   def up?(%__MODULE__{}), do: false
@@ -49,10 +55,15 @@ defmodule MediaCentaur.IntegrationAvailability.Status do
   kept on a down status and cleared on up.
   """
   @spec fold(t(), observation(), DateTime.t(), keyword()) :: {:changed | :unchanged, t()}
-  # Untouched, not re-dated: the store writes nothing here (an
+  # The first up observation is dated once: it turns the starting
+  # assumption into evidence. After that an up observation leaves the
+  # status untouched, not re-dated: the store writes nothing for it (an
   # `:persistent_term` update costs a global scan and Prowlarr answers
   # many times a minute), so a fresher `observed_at` would be a claim
   # nobody keeps.
+  def fold(%__MODULE__{state: :up, observed_at: nil} = status, :up, now, _opts),
+    do: {:unchanged, %{status | observed_at: now}}
+
   def fold(%__MODULE__{state: :up} = status, :up, _now, _opts), do: {:unchanged, status}
 
   def fold(%__MODULE__{state: {:down, _since, _reason}} = status, :up, now, _opts),

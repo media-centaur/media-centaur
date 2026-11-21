@@ -51,6 +51,7 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
   @unavailable_grace_seconds 360
 
   @type fault :: {:fault, :upstream_failing | :upstream_unavailable, :warning, map()}
+  @type assessment :: :ok | {:unknown, [:upstream_unavailable]} | fault()
 
   @impl true
   def assess do
@@ -59,14 +60,20 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
 
   @doc """
   Pure assessment: a TMDB outage past the grace window, else the worst
-  share-failing upstream, else `:ok`. A down TMDB outranks a failing CDN
-  — it is the one with a remedy the person can act on. `totals_by_upstream`
-  maps an upstream id to its `Traffic.totals/0` over the window.
+  share-failing upstream, else — when TMDB is down inside the grace window
+  or not observed since the start — `{:unknown, [:upstream_unavailable]}`,
+  so an open TMDB incident survives a restart; else `:ok`. A down TMDB
+  outranks a failing CDN — it is the one with a remedy the person can act
+  on. `totals_by_upstream` maps an upstream id to its `Traffic.totals/0`
+  over the window.
   """
-  @spec assess(%{atom() => Traffic.totals()}, Status.t(), DateTime.t()) :: :ok | fault()
+  @spec assess(%{atom() => Traffic.totals()}, Status.t(), DateTime.t()) :: assessment()
   def assess(totals_by_upstream, %Status{} = tmdb_status, %DateTime{} = now)
       when is_map(totals_by_upstream) do
-    unavailable(tmdb_status, now) || failing_share(totals_by_upstream)
+    case unavailable(tmdb_status, now) do
+      {:fault, _kind, _severity, _ids} = fault -> fault
+      verdict -> with :ok <- failing_share(totals_by_upstream), do: verdict
+    end
   end
 
   defp share_totals do
@@ -77,10 +84,14 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
     if DateTime.diff(now, since, :second) >= @unavailable_grace_seconds do
       {:fault, :upstream_unavailable, :warning,
        %{upstream: :tmdb, headline: unavailable_headline(reason)}}
+    else
+      {:unknown, [:upstream_unavailable]}
     end
   end
 
-  defp unavailable(%Status{state: :up}, _now), do: nil
+  defp unavailable(%Status{state: :up} = status, _now) do
+    if Status.observed?(status), do: :ok, else: {:unknown, [:upstream_unavailable]}
+  end
 
   defp unavailable_headline(:rejected), do: "#{Upstream.label(:tmdb)} rejected the API key"
   defp unavailable_headline(:rate_limited), do: "#{Upstream.label(:tmdb)} is rate-limiting requests"

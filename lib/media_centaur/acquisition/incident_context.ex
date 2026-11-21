@@ -23,7 +23,7 @@ defmodule MediaCentaur.Acquisition.IncidentContext do
   alias MediaCentaur.Downloads
   alias MediaCentaur.Search
 
-  @type assessment :: :ok | {:fault, atom(), :warning | :error, map()}
+  @type assessment :: MediaCentaur.ErrorReports.IncidentContext.assessment()
 
   @doc "Health probe polled by the diagnostics evaluator."
   @spec assess() :: assessment()
@@ -38,15 +38,25 @@ defmodule MediaCentaur.Acquisition.IncidentContext do
 
   @doc """
   The single condition to report from an ordered list of probe results:
-  the highest-severity fault, first-probe-wins on equal severity, `:ok`
-  when every probe is healthy.
+  the highest-severity fault, first-probe-wins on equal severity; with no
+  fault, `{:unknown, kinds}` naming every kind a probe cannot yet vouch
+  for, so one probe that cannot tell never holds another probe's
+  recovered kind open; `:ok` when every probe is healthy.
   """
   @spec worst([assessment()]) :: assessment()
   def worst(assessments) do
-    assessments
-    |> Enum.reject(&(&1 == :ok))
-    |> Enum.min_by(&severity_rank/1, fn -> :ok end)
+    faults = Enum.filter(assessments, &match?({:fault, _kind, _severity, _ids}, &1))
+    unknown_kinds = Enum.flat_map(assessments, &unknown_kinds/1)
+
+    cond do
+      faults != [] -> Enum.min_by(faults, &severity_rank/1)
+      unknown_kinds != [] -> {:unknown, unknown_kinds}
+      true -> :ok
+    end
   end
+
+  defp unknown_kinds({:unknown, kinds}), do: kinds
+  defp unknown_kinds(_assessment), do: []
 
   defp severity_rank({:fault, _kind, :error, _ids}), do: 0
   defp severity_rank({:fault, _kind, :warning, _ids}), do: 1

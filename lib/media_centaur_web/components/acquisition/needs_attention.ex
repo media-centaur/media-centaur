@@ -39,10 +39,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
   @doc """
   Whether the glyph renders at all — storage escalated past its calm
   foot line, search health warrants attention, or a download client is
-  in trouble. Silence is the healthy state: absent, not a gray glyph.
+  in trouble. Silence is the healthy state: absent, not a gray glyph. A
+  client the probes cannot vouch for yet (`{:unknown, kinds}`, after a
+  start or inside the grace window) is silent too: only a fault has a card.
   """
   def visible?(storage_mode, search_health, client_health) do
-    storage_mode == :card or IndexerHealth.problem?(search_health) or client_health != :ok
+    storage_mode == :card or IndexerHealth.problem?(search_health) or
+      client_card(client_health) != nil
   end
 
   attr :drives, :list,
@@ -58,7 +61,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
   attr :client_health, :any,
     required: true,
     doc:
-      "`Acquisition.client_health/0` — `:ok`, or `{:fault, kind, severity, ids}` for a download client the app can't reach, one that rejected the credentials, or one Prowlarr can't hand releases to. Renders a row for any fault."
+      "`Acquisition.client_health/0` — `:ok`, `{:unknown, kinds}` (renders nothing), or `{:fault, kind, severity, ids}` for a download client the app can't reach, one that rejected the credentials, or one Prowlarr can't hand releases to. Renders a row for any fault."
 
   attr :open, :boolean,
     default: false,
@@ -215,7 +218,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
     }
   end
 
-  def client_card(_healthy), do: nil
+  def client_card(_healthy_or_unknown), do: nil
 
   @doc """
   Panel copy for a search-capability fault, or `nil` when search health

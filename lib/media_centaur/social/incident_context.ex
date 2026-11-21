@@ -25,7 +25,9 @@ defmodule MediaCentaur.Social.IncidentContext do
 
   No relays configured is never a fault: an install that has not set up
   the friend network is not broken. Neither is a relay still working
-  through its first connect (`:connecting`) — it has not failed yet.
+  through its first connect (`:connecting`) — it has not failed yet, nor
+  has it been seen healthy, so it is unknown: an open relay incident
+  stays open until every relay connects.
 
   The decision is the pure `decide/3` over `Social.Connections.status/0`
   (whose entries carry `since`, the onset of their current state);
@@ -48,8 +50,11 @@ defmodule MediaCentaur.Social.IncidentContext do
 
   @type fault :: {:fault, atom(), :warning | :error, map()}
 
+  # The kinds `decide/3` can raise — the ones an unknown verdict holds.
+  @kinds [:relay_auth_failed, :relays_unreachable, :relay_degraded]
+
   @doc "Health probe polled by the diagnostics evaluator. Side-effect-free."
-  @spec assess() :: :ok | fault()
+  @spec assess() :: :ok | {:unknown, [atom()]} | fault()
   @impl true
   def assess, do: decide(Connections.status(), DateTime.utc_now(), @grace_seconds)
 
@@ -62,10 +67,13 @@ defmodule MediaCentaur.Social.IncidentContext do
       measured from `since`, before it counts as down.
 
   An auth failure outranks an outage: it is the one condition no amount
-  of waiting fixes.
+  of waiting fixes. With no fault, a relay still connecting or
+  disconnected inside the grace window makes the verdict
+  `{:unknown, kinds}` — an open relay incident stays open and none opens,
+  so a restart during an outage leaves one incident.
   """
   @spec decide(%{optional(String.t()) => Connections.entry()}, DateTime.t(), pos_integer()) ::
-          :ok | fault()
+          :ok | {:unknown, [atom()]} | fault()
   def decide(status, now, grace_seconds) do
     entries = Map.values(status)
     down = Enum.filter(entries, &down?(&1, now, grace_seconds))
@@ -77,8 +85,11 @@ defmodule MediaCentaur.Social.IncidentContext do
       Enum.any?(entries, &(&1.state == :auth_failed)) ->
         fault(:relay_auth_failed, :error, "Relay rejected this identity", status, now)
 
-      down == [] ->
+      down == [] and Enum.all?(entries, &Connections.connected?/1) ->
         :ok
+
+      down == [] ->
+        {:unknown, @kinds}
 
       length(down) == length(entries) ->
         fault(:relays_unreachable, :error, "No relay reachable", status, now)

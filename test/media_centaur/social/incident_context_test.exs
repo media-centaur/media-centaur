@@ -70,9 +70,13 @@ defmodule MediaCentaur.Social.IncidentContextTest do
     assert IncidentContext.decide(status([{"wss://a/", :synced, @now}]), @now, @grace) == :ok
   end
 
-  test "disconnected inside the grace window is still healthy" do
+  @relay_kinds [:relay_auth_failed, :relays_unreachable, :relay_degraded]
+
+  test "disconnected inside the grace window is unknown: it neither opens nor closes an issue" do
     since = DateTime.add(@now, -60, :second)
-    assert IncidentContext.decide(status([{"wss://a/", :disconnected, since}]), @now, @grace) == :ok
+
+    assert IncidentContext.decide(status([{"wss://a/", :disconnected, since}]), @now, @grace) ==
+             {:unknown, @relay_kinds}
   end
 
   test "all relays down past grace is an error; some down is a warning" do
@@ -89,9 +93,11 @@ defmodule MediaCentaur.Social.IncidentContextTest do
              )
   end
 
-  test "a relay still connecting is not yet a fault, however long it has taken" do
+  test "a relay that has not finished connecting, however long it has taken, is unknown — neither fault nor recovery" do
     old = DateTime.add(@now, -600, :second)
-    assert IncidentContext.decide(status([{"wss://a/", :connecting, old}]), @now, @grace) == :ok
+
+    assert IncidentContext.decide(status([{"wss://a/", :connecting, old}]), @now, @grace) ==
+             {:unknown, @relay_kinds}
   end
 
   test "an auth failure outranks a plain outage" do

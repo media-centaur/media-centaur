@@ -20,6 +20,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContext do
   fresh by `Search.ProbeJob` while down, so the fault lasts exactly as
   long as the outage and clears within one probe of recovery. A grace
   window keeps one failed grab from opening an incident on its own.
+  With no slot down past it, a slot down inside the window, or no slot
+  observed at all since the start, makes the verdict `{:unknown, kinds}`:
+  an open hand-off incident stays open and none opens. A slot is only
+  observed when a grab or a probe uses it, and Prowlarr may have no
+  client for the other protocol, so one observed slot with none down is
+  enough to resolve it.
 
   `decide/3` is pure; `assess/0` is the thin shell that reads the two
   statuses.
@@ -34,8 +40,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContext do
 
   @type fault :: {:fault, :download_client_handoff_failed, :warning, %{headline: String.t()}}
 
+  @kinds [:download_client_handoff_failed]
+
   @doc "Health probe polled (via the acquisition composite) by the diagnostics evaluator."
-  @spec assess() :: :ok | fault()
+  @spec assess() :: :ok | {:unknown, [atom()]} | fault()
   @impl true
   def assess do
     IntegrationAvailability.handoff_slots()
@@ -44,13 +52,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContext do
   end
 
   @doc "Pure fault decision over the hand-off statuses."
-  @spec decide([Status.t()], DateTime.t(), pos_integer()) :: :ok | fault()
+  @spec decide([Status.t()], DateTime.t(), pos_integer()) :: :ok | {:unknown, [atom()]} | fault()
   def decide(statuses, now, grace_seconds) do
-    if Enum.any?(statuses, &down_past_grace?(&1, now, grace_seconds)) do
-      {:fault, :download_client_handoff_failed, :warning,
-       %{headline: "Prowlarr could not hand releases to the download client"}}
-    else
-      :ok
+    cond do
+      Enum.any?(statuses, &down_past_grace?(&1, now, grace_seconds)) ->
+        {:fault, :download_client_handoff_failed, :warning,
+         %{headline: "Prowlarr could not hand releases to the download client"}}
+
+      Enum.any?(statuses, &(not Status.up?(&1))) ->
+        {:unknown, @kinds}
+
+      Enum.any?(statuses, &Status.observed?/1) ->
+        :ok
+
+      true ->
+        {:unknown, @kinds}
     end
   end
 

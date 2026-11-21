@@ -75,10 +75,21 @@ defmodule MediaCentaur.IntegrationAvailabilityTest do
       assert IntegrationAvailability.up?({:handoff, :torrent})
     end
 
-    test "an up observation on an up integration is unchanged and writes nothing" do
+    test "the first up observation records when it was seen, without a broadcast" do
+      Topics.subscribe(Topics.integration_availability_updates())
+
+      assert :unchanged = IntegrationAvailability.report(:prowlarr, :up, now: @t0)
+
+      refute_receive {:integration_availability_changed, :prowlarr, _state}, 50
+      assert %Status{state: :up, observed_at: @t0} = IntegrationAvailability.status(:prowlarr)
+    end
+
+    test "a later up observation on an observed up integration writes nothing" do
+      :unchanged = IntegrationAvailability.report(:prowlarr, :up, now: @t0)
+
       assert :unchanged = IntegrationAvailability.report(:prowlarr, :up, now: @t1)
 
-      assert IntegrationAvailability.status(:prowlarr).observed_at == nil
+      assert IntegrationAvailability.status(:prowlarr).observed_at == @t0
     end
   end
 

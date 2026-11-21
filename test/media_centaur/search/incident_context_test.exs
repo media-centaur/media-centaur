@@ -37,8 +37,15 @@ defmodule MediaCentaur.Search.IncidentContextTest do
     assert headline == "Search provider rejected the API key"
   end
 
-  test "a fault younger than the grace window stays quiet" do
-    assert decide(down(:blind, ~U[2026-08-01 00:59:00Z])) == :ok
+  @search_kinds [:search_provider_unreachable, :search_provider_rejected, :search_indexers_unavailable]
+
+  test "a fault younger than the grace window is unknown: it neither opens nor closes an issue" do
+    assert decide(down(:blind, ~U[2026-08-01 00:59:00Z])) == {:unknown, @search_kinds}
+  end
+
+  test "a Prowlarr nobody has observed since the start is unknown, not available" do
+    assert decide(%Status{integration: :prowlarr, state: :up, observed_at: nil}) ==
+             {:unknown, @search_kinds}
   end
 
   test "an outage nobody has looked at in days still faults — the probe keeps the value true" do

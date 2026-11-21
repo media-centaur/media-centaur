@@ -11,21 +11,24 @@ defmodule MediaCentaur.ErrorReports.Evaluator do
 
   Contract: a component with a registered assessor lets the evaluator **own**
   its `:subsystem` incidents — `assess/0` reports the single current condition,
-  and the evaluator resolves any open kind the assessor is no longer reporting.
+  and the evaluator resolves any open kind the assessor is no longer reporting
+  and has not declared `{:unknown, kinds}`. A crashing assessor holds every
+  open kind, the same as one that cannot tell.
   """
   alias MediaCentaur.ErrorReports
   alias MediaCentaur.ErrorReports.Contributors
   alias MediaCentaur.ErrorReports.IncidentContext
   alias MediaCentaur.ErrorReports.Store
 
-  @type assessment ::
-          :ok | {:fault, IncidentContext.kind(), IncidentContext.severity(), IncidentContext.ids()}
+  @type assessment :: IncidentContext.assessment()
 
   @doc """
   Pure reconcile decision: given an `assess/0` result and the kinds currently
   open for that component, returns what to raise and what to resolve.
 
     - `:ok` → resolve every open kind, raise nothing.
+    - `{:unknown, kinds}` → raise nothing, keep those kinds open, resolve the
+      rest.
     - `{:fault, kind, severity, _ids}` → raise that kind, resolve any other open
       kind the assessor is no longer reporting.
   """
@@ -34,6 +37,10 @@ defmodule MediaCentaur.ErrorReports.Evaluator do
           resolves: [String.t()]
         }
   def plan(:ok, open_kinds), do: %{raises: [], resolves: open_kinds}
+
+  def plan({:unknown, kinds}, open_kinds) do
+    %{raises: [], resolves: open_kinds -- Enum.map(kinds, &to_string/1)}
+  end
 
   def plan({:fault, kind, severity, _ids}, open_kinds) do
     %{raises: [{kind, severity}], resolves: open_kinds -- [to_string(kind)]}
@@ -86,6 +93,7 @@ defmodule MediaCentaur.ErrorReports.Evaluator do
   defp safe_assess(module) do
     case module.assess() do
       :ok -> :ok
+      {:unknown, kinds} = unknown when is_list(kinds) -> unknown
       {:fault, _kind, _severity, _ids} = fault -> fault
       _other -> :skip
     end

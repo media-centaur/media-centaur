@@ -23,11 +23,13 @@ defmodule MediaCentaur.IntegrationAvailability do
   Prowlarr's link to *its* download client, and the app's own client
   link is `Downloads.Connectivity`'s business.
 
-  Writes happen on a transition and on every down observation (so
-  `observed_at` says when a down integration was last probed); an up
-  observation on an up integration writes nothing — `:persistent_term`
-  updates cost a global scan, and Prowlarr answers many times a minute.
-  An integration nobody has observed yet has no `observed_at` at all.
+  Writes happen on a transition, on every down observation (so
+  `observed_at` says when a down integration was last probed) and on the
+  first up observation; any later up observation on an up integration
+  writes nothing — `:persistent_term` updates cost a global scan, and
+  Prowlarr answers many times a minute. An integration nobody has
+  observed yet has no `observed_at` at all, which the health probes read
+  as "cannot tell yet" rather than as up.
   Transitions broadcast `{:integration_availability_changed, integration, state}`
   on `Topics.integration_availability_updates/0`.
   """
@@ -104,25 +106,26 @@ defmodule MediaCentaur.IntegrationAvailability do
           :unchanged | {:changed, Status.state()}
   def report(integration, observation, opts \\ []) when integration in @integrations do
     now = Keyword.get(opts, :now, DateTime.utc_now())
-    {verdict, next} = Status.fold(status(integration), observation, now, opts)
+    current = status(integration)
+    {verdict, next} = Status.fold(current, observation, now, opts)
 
-    case {verdict, next.state} do
-      {:unchanged, :up} ->
+    case verdict do
+      :unchanged when next == current ->
         :unchanged
 
-      {:unchanged, _down} ->
+      :unchanged ->
         :persistent_term.put(key(integration), next)
         :unchanged
 
-      {:changed, state} ->
+      :changed ->
         :persistent_term.put(key(integration), next)
 
         Topics.publish(
           Topics.integration_availability_updates(),
-          {:integration_availability_changed, integration, state}
+          {:integration_availability_changed, integration, next.state}
         )
 
-        {:changed, state}
+        {:changed, next.state}
     end
   end
 

@@ -12,8 +12,13 @@ defmodule MediaCentaur.ErrorReports.IncidentContext do
 
   - **Detect** (`assess/0`) — a cheap, side-effect-free health check the
     periodic evaluator polls for duration/trend faults. Returns `:ok` when
-    healthy, or `{:fault, kind, severity, ids}` to raise/keep a `:subsystem`
-    incident (grouped by `{component, kind}`). `ids` may carry `headline:`,
+    healthy, `{:fault, kind, severity, ids}` to raise/keep a `:subsystem`
+    incident (grouped by `{component, kind}`), or `{:unknown, kinds}` when it
+    cannot yet say whether those kinds hold — nothing observed since the
+    start, or a failure younger than the probe's grace window. An unknown
+    kind is neither raised nor resolved, so an incident open before a
+    restart or a short blip stays one incident; `:ok` is reserved for a
+    probe that has seen the subsystem healthy. `ids` may carry `headline:`,
     the sentence the health board shows for the condition ("No relay
     reachable"); without one the evaluator titles the incident after its
     kind. It may also carry `detail:`, plain text (one fact per line) saying
@@ -35,9 +40,10 @@ defmodule MediaCentaur.ErrorReports.IncidentContext do
   @type kind :: atom()
   @type severity :: :warning | :error | :critical
   @type ids :: %{optional(atom()) => term()}
+  @type assessment :: :ok | {:unknown, [kind()]} | {:fault, kind(), severity(), ids()}
 
   @doc "Health probe polled by the evaluator. Side-effect-free and cheap."
-  @callback assess() :: :ok | {:fault, kind(), severity(), ids()}
+  @callback assess() :: assessment()
 
   @doc "Structured context for an incident with the given triggering ids."
   @callback gather(ids()) :: map()

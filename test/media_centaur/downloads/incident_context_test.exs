@@ -20,13 +20,15 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
 
   defp state(connectivity), do: %QueueState{connectivity: connectivity}
 
+  @client_kinds [:download_client_auth_failed, :download_client_unreachable]
+
   describe "decide/3 — healthy states never fault" do
     test "live → :ok" do
       assert IncidentContext.decide(state(:live), now(), @grace) == :ok
     end
 
-    test "initializing → :ok (startup is not an outage)" do
-      assert IncidentContext.decide(state(:initializing), now(), @grace) == :ok
+    test "initializing → unknown: nothing has been asked since the start, so an open issue stays open" do
+      assert IncidentContext.decide(state(:initializing), now(), @grace) == {:unknown, @client_kinds}
     end
 
     test "not configured → :ok (no client is not a fault)" do
@@ -34,17 +36,18 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
     end
   end
 
-  describe "decide/3 — transient connectivity is absorbed" do
-    test "a single failed poll (transient blip) → :ok regardless of age" do
+  describe "decide/3 — transient connectivity neither faults nor counts as recovery" do
+    test "a single failed poll (transient blip) → unknown regardless of age" do
       assert IncidentContext.decide(state({:transient_failure, seconds_ago(60)}), now(), @grace) ==
-               :ok
+               {:unknown, @client_kinds}
 
       assert IncidentContext.decide(state({:transient_failure, seconds_ago(600)}), now(), @grace) ==
-               :ok
+               {:unknown, @client_kinds}
     end
 
-    test "offline with onset inside the grace window → :ok" do
-      assert IncidentContext.decide(state({:offline, seconds_ago(60)}), now(), @grace) == :ok
+    test "offline with onset inside the grace window → unknown" do
+      assert IncidentContext.decide(state({:offline, seconds_ago(60)}), now(), @grace) ==
+               {:unknown, @client_kinds}
     end
   end
 

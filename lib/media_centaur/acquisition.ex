@@ -253,7 +253,7 @@ defmodule MediaCentaur.Acquisition do
   the worse of the app's own link to the client
   (`Downloads.IncidentContext`) and Prowlarr's own, read from
   `IntegrationAvailability` (`Pursuits.IncidentContext`). `:ok` while
-  both are healthy. The same
+  both are healthy, `{:unknown, kinds}` while either cannot tell yet. The same
   probes the Status page's acquisition incident is built from (ADR-054),
   read live — the glyph shows a condition while it holds, never a
   history.

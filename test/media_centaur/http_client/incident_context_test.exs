@@ -50,8 +50,19 @@ defmodule MediaCentaur.HttpClient.IncidentContextTest do
                assess(%{}, down(:rate_limited, 10))
     end
 
-    test "an outage younger than the grace window stays quiet — a probe has not confirmed it" do
-      assert assess(%{}, down(:unreachable, 2)) == :ok
+    test "an outage younger than the grace window is unknown — a probe has not confirmed it" do
+      assert assess(%{}, down(:unreachable, 2)) == {:unknown, [:upstream_unavailable]}
+    end
+
+    test "a TMDB nobody has observed since the start is unknown, not up" do
+      unobserved = %Status{integration: :tmdb, state: :up, observed_at: nil}
+
+      assert assess(%{}, unobserved) == {:unknown, [:upstream_unavailable]}
+    end
+
+    test "a failing CDN faults while TMDB is unknown" do
+      assert {:fault, :upstream_failing, :warning, %{upstream: :tmdb_images}} =
+               assess(totals(%{tmdb_images: {20, 15}}), down(:unreachable, 2))
     end
 
     test "a TMDB that answers never faults on request share — a 404 is not an outage" do

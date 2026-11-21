@@ -28,6 +28,11 @@ defmodule MediaCentaur.Search.IncidentContext do
   outage and clears within one probe of recovery. A grace window keeps
   one failed request from opening an incident on its own.
 
+  An outage inside the grace window, or a Prowlarr nobody has observed
+  since the start, is `{:unknown, kinds}`: the evaluator keeps an open
+  search incident open and opens none, so a restart during an outage
+  leaves one incident. Only an observed `:up` resolves it.
+
   This replaces the staleness rule an event-driven signal needed: the
   cached roster observation used to be treated as `:ok` once it aged past
   15 minutes, on the reasoning that nothing was exercising search — which
@@ -51,25 +56,33 @@ defmodule MediaCentaur.Search.IncidentContext do
 
   @type fault :: {:fault, atom(), :warning, %{headline: String.t()}}
 
+  # The kinds `decide/3` can raise — the ones an unknown verdict holds.
+  @kinds [:search_provider_unreachable, :search_provider_rejected, :search_indexers_unavailable]
+
   @doc "Health probe polled (via the acquisition composite) by the diagnostics evaluator."
-  @spec assess() :: :ok | fault()
+  @spec assess() :: :ok | {:unknown, [atom()]} | fault()
   @impl true
   def assess do
     decide(IntegrationAvailability.status(:prowlarr), DateTime.utc_now(), @grace_seconds)
   end
 
   @doc "Pure fault decision over Prowlarr's availability."
-  @spec decide(Status.t(), DateTime.t(), pos_integer()) :: :ok | fault()
+  @spec decide(Status.t(), DateTime.t(), pos_integer()) :: :ok | {:unknown, [atom()]} | fault()
   def decide(%Status{state: {:down, since, reason}}, now, grace_seconds) do
-    with {kind, headline} <- fault_for(reason),
-         true <- DateTime.diff(now, since, :second) >= grace_seconds do
-      {:fault, kind, :warning, %{headline: headline}}
-    else
-      _quiet -> :ok
+    case fault_for(reason) do
+      nil ->
+        :ok
+
+      {kind, headline} ->
+        if DateTime.diff(now, since, :second) >= grace_seconds,
+          do: {:fault, kind, :warning, %{headline: headline}},
+          else: {:unknown, @kinds}
     end
   end
 
-  def decide(%Status{state: :up}, _now, _grace_seconds), do: :ok
+  def decide(%Status{state: :up} = status, _now, _grace_seconds) do
+    if Status.observed?(status), do: :ok, else: {:unknown, @kinds}
+  end
 
   defp fault_for(:unreachable), do: {:search_provider_unreachable, "Search provider unreachable"}
   defp fault_for(:rejected), do: {:search_provider_rejected, "Search provider rejected the API key"}

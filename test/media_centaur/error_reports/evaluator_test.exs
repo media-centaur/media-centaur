@@ -31,6 +31,12 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
     end
   end
 
+  defmodule Undetermined do
+    @behaviour MediaCentaur.ErrorReports.IncidentContext
+    @impl true
+    def assess, do: {:unknown, [:stalled]}
+  end
+
   defmodule Crasher do
     @behaviour MediaCentaur.ErrorReports.IncidentContext
     @impl true
@@ -48,6 +54,15 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
     test "a fault raises its kind and resolves the others" do
       assert Evaluator.plan({:fault, :stalled, :error, %{}}, ["stalled", "lagging"]) ==
                %{raises: [{:stalled, :error}], resolves: ["lagging"]}
+    end
+
+    test "an unknown verdict keeps the kinds it cannot vouch for and resolves the rest" do
+      assert Evaluator.plan({:unknown, [:stalled]}, ["stalled", "lagging"]) ==
+               %{raises: [], resolves: ["lagging"]}
+    end
+
+    test "an unknown verdict raises nothing" do
+      assert Evaluator.plan({:unknown, [:stalled]}, []) == %{raises: [], resolves: []}
     end
 
     test "a fault with no open kinds raises only" do
@@ -86,6 +101,16 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
 
       assert %{detail: "wss://a/ — disconnected for 12 min"} =
                Store.get_open_subsystem_incident(:social, :relays_unreachable)
+    end
+
+    test "an open fault survives an assessor that cannot yet say whether it holds" do
+      Evaluator.run(%{pipeline: Stalled})
+      first = Store.get_open_subsystem_incident(:pipeline, :stalled)
+
+      Evaluator.run(%{pipeline: Undetermined})
+
+      assert %{id: id} = Store.get_open_subsystem_incident(:pipeline, :stalled)
+      assert id == first.id
     end
 
     test "a healthy assessor with nothing open does nothing" do

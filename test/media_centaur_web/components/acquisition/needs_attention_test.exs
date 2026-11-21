@@ -69,5 +69,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttentionTest do
       assert NeedsAttention.visible?(:calm, healthy_search, @handoff_failed)
       refute NeedsAttention.visible?(:calm, healthy_search, :ok)
     end
+
+    test "a client nobody can vouch for yet shows nothing — startup is not a problem" do
+      healthy_search = %IndexerHealth{state: :ok, checked_at: DateTime.utc_now(:second)}
+
+      refute NeedsAttention.visible?(
+               :calm,
+               healthy_search,
+               {:unknown, [:download_client_unreachable, :download_client_handoff_failed]}
+             )
+    end
   end
 end
