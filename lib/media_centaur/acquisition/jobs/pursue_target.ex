@@ -449,9 +449,8 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         {:ok, quality_label}
 
       {:error, reason} ->
-        Log.warning(:acquisition, "acquisition grab failed — #{inspect(reason)}")
-
-        if Prowlarr.grab_outage?(reason) do
+        # `Prowlarr.grab/1` already logged the failure at its class's severity.
+        if Prowlarr.grab_failure(reason) == :outage do
           handle_infrastructure_failure(
             target,
             "download_client_unavailable",

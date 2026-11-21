@@ -202,32 +202,74 @@ defmodule MediaCentaur.Search.Prowlarr do
           :ok
 
         {:ok, %{status: status, body: body}} ->
-          Log.warning(:acquisition, "prowlarr grab failed — status=#{status} body=#{inspect(body)}")
-
           {:error, {:http_error, status, body}}
 
         {:error, reason} ->
-          Log.warning(:acquisition, "prowlarr grab error — #{inspect(reason)}")
           {:error, reason}
       end
 
+    log_grab_failure(outcome, result)
     ProwlarrAvailability.observe_grab(outcome, result.protocol)
     outcome
   end
 
+  # One line per failed grab, at the severity its class calls for; callers
+  # act on `grab_failure/1` and do not log the failure again.
+  #
+  #   * `:outage` — owned by the `:prowlarr` / hand-off availability fault
+  #     (`ProwlarrAvailability`), so console-only.
+  #   * `:release_not_cached` — the caller searches again; nothing is wrong.
+  #   * `:refused` — Prowlarr refused this release for a reason no
+  #     subsystem owns: a warning that reaches incidents.
+  defp log_grab_failure(:ok, _result), do: :ok
+
+  defp log_grab_failure({:error, reason}, result) do
+    case grab_failure(reason) do
+      :outage ->
+        Log.warning(:acquisition, "prowlarr grab held — #{result.title} — #{inspect(reason)}",
+          mc_incident: :skip
+        )
+
+      :release_not_cached ->
+        Log.info(
+          :acquisition,
+          "prowlarr grab — Prowlarr no longer holds #{result.title} (restarted since the search)"
+        )
+
+      :refused ->
+        Log.warning(:acquisition, "prowlarr grab refused — #{result.title} — #{inspect(reason)}")
+    end
+  end
+
   @doc """
-  Whether a `grab/1` error is about the infrastructure rather than the
-  release: Prowlarr itself could not be reached, or Prowlarr answered
-  that it cannot hand the release to the download client. Any other
-  answer from Prowlarr — a 4xx, a 5xx about the release, a result with
-  no indexer id — is about the release: the retry loop charges an
-  attempt for it, so a release Prowlarr keeps refusing is paced by the
-  attempt ladder instead of retried at the probe cadence.
+  What a `grab/1` error is about — the one classification its callers act on
+  and its log line reads:
+
+    * `:outage` — the infrastructure: Prowlarr could not be reached, or it
+      answered that it cannot hand the release to the download client. The
+      caller holds the grab until the availability probe says it can answer.
+    * `:release_not_cached` — Prowlarr no longer holds the release in the
+      cache of search results it grabs from (it restarted since the search).
+      The caller searches again.
+    * `:refused` — any other answer: a 4xx, a 5xx about the release, a
+      result with no indexer id. The retry loop charges an attempt for it,
+      so a release Prowlarr keeps refusing is paced by the attempt ladder
+      instead of retried at the probe cadence.
   """
-  @spec grab_outage?(term()) :: boolean()
-  def grab_outage?({:http_error, _status, _body} = reason), do: download_client_unavailable?(reason)
-  def grab_outage?(:missing_indexer_id), do: false
-  def grab_outage?(_transport_error), do: true
+  @spec grab_failure(term()) :: :outage | :release_not_cached | :refused
+  def grab_failure({:http_error, _status, %{"description" => description}} = reason)
+      when is_binary(description) do
+    cond do
+      download_client_unavailable?(reason) -> :outage
+      String.contains?(description, "Couldn't find requested release in cache") -> :release_not_cached
+      true -> :refused
+    end
+  end
+
+  def grab_failure({:http_error, _status, _body}), do: :refused
+  def grab_failure({:http_error, _status}), do: :refused
+  def grab_failure(:missing_indexer_id), do: :refused
+  def grab_failure(_transport_error), do: :outage
 
   @doc """
   Whether a `grab/1` error is specifically Prowlarr failing to hand the

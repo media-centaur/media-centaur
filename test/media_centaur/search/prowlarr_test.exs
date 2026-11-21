@@ -4,6 +4,8 @@ defmodule MediaCentaur.Search.ProwlarrTest do
   # before enqueueing a probe.
   use MediaCentaur.DataCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
 
   # `Prowlarr.default_client/0` is built from Settings on every call; the
@@ -147,6 +149,66 @@ defmodule MediaCentaur.Search.ProwlarrTest do
 
       result = %SearchResult{title: "Some.Movie.2160p", guid: "abc123", indexer_id: nil}
       assert {:error, :missing_indexer_id} = Prowlarr.grab(result)
+    end
+
+    test "a release missing from Prowlarr's cache logs no warning, so it opens no incident" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          404,
+          Jason.encode!(%{
+            "description" =>
+              "NzbDrone.Core.Exceptions.NzbDroneClientException: Couldn't find requested release in cache, try searching again"
+          })
+        )
+      end)
+
+      result = %SearchResult{title: "Sample.Show.S01.1080p.WEB-DL", guid: "stale-guid", indexer_id: 1}
+
+      log =
+        capture_log(fn -> assert {:error, _} = Prowlarr.grab(result) end)
+
+      refute log =~ "[warning]"
+    end
+
+    test "a hand-off outage is a warning kept out of incidents — the availability fault owns it" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          500,
+          Jason.encode!(%{
+            "description" =>
+              "NzbDrone.Core.Download.Clients.DownloadClientUnavailableException: Unable to connect to SABnzbd"
+          })
+        )
+      end)
+
+      result = %SearchResult{title: "Sample.Show.S01.1080p.WEB-DL", guid: "abc123", indexer_id: 1}
+
+      log =
+        capture_log([metadata: [:mc_incident]], fn -> assert {:error, _} = Prowlarr.grab(result) end)
+
+      assert log =~ "[warning]"
+      assert log =~ "mc_incident=skip"
+    end
+
+    test "a refusal about the release is a warning naming it, and reaches incidents" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(400, Jason.encode!(%{"message" => "Bad Request"}))
+      end)
+
+      result = %SearchResult{title: "Sample.Show.S01.1080p.WEB-DL", guid: "bad-guid", indexer_id: 1}
+
+      log =
+        capture_log([metadata: [:mc_incident]], fn -> assert {:error, _} = Prowlarr.grab(result) end)
+
+      assert log =~ "[warning]"
+      assert log =~ "Sample.Show.S01.1080p.WEB-DL"
+      refute log =~ "mc_incident=skip"
     end
 
     test "returns error on HTTP failure" do

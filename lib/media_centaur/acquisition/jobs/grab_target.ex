@@ -76,7 +76,7 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
         land(target, release)
 
       {:error, reason} ->
-        if Prowlarr.grab_outage?(reason), do: hold(target), else: refuse(target, reason)
+        if Prowlarr.grab_failure(reason) == :outage, do: hold(target), else: refuse(target)
     end
   end
 
@@ -102,7 +102,7 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
     :ok
   end
 
-  defp refuse(target, reason) do
+  defp refuse(target) do
     pursuit = Repo.get!(Pursuit, target.pursuit_id)
 
     {:ok, failed} =
@@ -116,9 +116,11 @@ defmodule MediaCentaur.Acquisition.Jobs.GrabTarget do
 
     Acquisition.broadcast_update(%TargetEvents.Failed{target: failed})
 
-    Log.warning(
+    # `Prowlarr.grab/1` already logged why the grab failed; this line records
+    # what the app does about it.
+    Log.info(
       :acquisition,
-      "grab refused — #{target.release_title} — #{inspect(reason)}; searching again for #{target.title}"
+      "grab not taken — #{target.release_title}; searching again for #{target.title}"
     )
 
     :ok
