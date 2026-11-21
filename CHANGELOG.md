@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.19.2 — 2026-11-21
+
+### New
+
+- **Settings can take your connections from prowlarr-stack.** If you run prowlarr-stack, Media Centaur reads the connection file it writes. Settings → Acquisition and the setup flow's Prowlarr step show any connections that differ from your saved ones. Choose *Accept and test* to save Prowlarr and both download clients and test each one. Choose *Decline* to hide the card until a value changes. Nothing is applied in part: if the file can't be used, for example because it has an unknown format or other users on the machine can write to it, the card says why.
+
+### Improved
+
+- **The Status page says which download client is down, and why.** When a download client stops answering, the issue lists each client with its address, how long it has been offline and what went wrong. For example, it says when nothing is listening at the address, or when another program answers on the client's port.
+- **Status warns when finished downloads won't be imported.** If prowlarr-stack's folder for finished downloads is missing, or isn't inside one of your media directories, Status and the Downloads page say so, since nothing that lands there would reach your library.
+
+### Fixed
+
+- **Security fixes in the web framework.** Updates to the components behind every page close three reported weaknesses. One of them let a crafted message crash the part of the server that tracks connected pages.
+
 ## v2.19.1 — 2026-11-18
 
 ### Improved
