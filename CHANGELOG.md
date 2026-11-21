@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.19.3 — 2026-11-21
+
+### Fixed
+
+- **A failed grab no longer fills Status with duplicate issues.** One failed grab used to produce up to three warnings. Now each failure is recorded once. When Prowlarr or a download client is unreachable, the existing connection issue on Status already covers it, so no separate issue opens. When Prowlarr has restarted and lost the release since you searched, Media Centaur searches again without raising an issue. Only a grab that Prowlarr actually refuses appears on Status, and it names the release.
+
 ## v2.19.2 — 2026-11-21
 
 ### New
