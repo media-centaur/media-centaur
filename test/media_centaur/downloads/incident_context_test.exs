@@ -8,6 +8,7 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
   """
   use MediaCentaur.Case, async: true
 
+  alias MediaCentaur.Downloads.ClientStatus
   alias MediaCentaur.Downloads.IncidentContext
   alias MediaCentaur.Downloads.QueueState
 
@@ -63,6 +64,64 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
     test "auth_failed faults at :error regardless of grace" do
       assert {:fault, :download_client_auth_failed, :error, _ids} =
                IncidentContext.decide(state(:auth_failed), now(), @grace)
+    end
+  end
+
+  describe "decide/3 — the fault says which client, since when, and why" do
+    defp client(upstream, url, connectivity, last_error \\ nil) do
+      %ClientStatus{upstream: upstream, url: url, connectivity: connectivity, last_error: last_error}
+    end
+
+    test "an outage lists every client: the offline one with its duration and cause, the healthy one as answering" do
+      offline_since = seconds_ago(2 * 3600 + 5 * 60)
+
+      queue = %QueueState{
+        connectivity: {:offline, offline_since},
+        clients: %{
+          torrent: client(:qbittorrent, "http://127.0.0.1:8080", {:offline, offline_since}, "HTTP 404"),
+          usenet: client(:sabnzbd, "http://127.0.0.1:8085", :live)
+        }
+      }
+
+      assert {:fault, :download_client_unreachable, :warning, %{detail: detail}} =
+               IncidentContext.decide(queue, now(), @grace)
+
+      assert detail ==
+               "qBittorrent at http://127.0.0.1:8080 — offline for 2h 5m (HTTP 404)\n" <>
+                 "SABnzbd at http://127.0.0.1:8085 — answering"
+    end
+
+    test "a credential rejection names the client that refused" do
+      queue = %QueueState{
+        connectivity: :auth_failed,
+        clients: %{
+          usenet: client(:sabnzbd, "http://127.0.0.1:8085", :auth_failed, "credentials rejected")
+        }
+      }
+
+      assert {:fault, :download_client_auth_failed, :error, %{detail: detail}} =
+               IncidentContext.decide(queue, now(), @grace)
+
+      assert detail == "SABnzbd at http://127.0.0.1:8085 — credentials rejected"
+    end
+
+    test "a single missed poll inside an outage elsewhere reads as such" do
+      offline_since = seconds_ago(600)
+
+      queue = %QueueState{
+        connectivity: {:offline, offline_since},
+        clients: %{
+          torrent: client(:qbittorrent, "http://127.0.0.1:8080", {:offline, offline_since}, "timed out"),
+          usenet:
+            client(:sabnzbd, "http://127.0.0.1:8085", {:transient_failure, seconds_ago(5)}, "timed out")
+        }
+      }
+
+      assert {:fault, _kind, _severity, %{detail: detail}} = IncidentContext.decide(queue, now(), @grace)
+
+      assert detail ==
+               "qBittorrent at http://127.0.0.1:8080 — offline for 10m (timed out)\n" <>
+                 "SABnzbd at http://127.0.0.1:8085 — missed the last poll (timed out)"
     end
   end
 

@@ -40,6 +40,11 @@ defmodule MediaCentaur.Downloads.IncidentContext do
 
   `:not_configured` (no client set up) is never a fault.
 
+  Both client faults carry a `detail:` — one line per configured client
+  (`QueueState.clients`) with its name, address, state, how long it has been
+  offline, and the cause of its last failed poll — the evidence the issue view
+  shows in place of log lines.
+
   The decision is the pure `decide/3` over the producer-graded
   `QueueState.connectivity` (see `MediaCentaur.Downloads.Connectivity`);
   `assess/0` is the thin shell that reads `QueueMonitor`'s public `QueueState`
@@ -52,9 +57,12 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   """
   @behaviour MediaCentaur.ErrorReports.IncidentContext
 
+  alias MediaCentaur.Downloads.ClientStatus
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Downloads.QueueState
   alias MediaCentaur.Downloads.Wiring
+  alias MediaCentaur.Format
+  alias MediaCentaur.HttpClient.Upstream
 
   # How long a graded outage must have lasted before a connectivity warning
   # opens — long enough that a brief client restart never surfaces, short
@@ -99,18 +107,46 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   and unconfigured states never fault.
   """
   @spec decide(QueueState.t(), DateTime.t(), pos_integer()) :: :ok | fault()
-  def decide(%QueueState{connectivity: :auth_failed}, _now, _grace) do
+  def decide(%QueueState{connectivity: :auth_failed} = queue, now, _grace) do
     {:fault, :download_client_auth_failed, :error,
-     %{headline: "Download client rejected the credentials"}}
+     %{headline: "Download client rejected the credentials", detail: detail(queue, now)}}
   end
 
-  def decide(%QueueState{connectivity: {:offline, %DateTime{} = since}}, now, grace) do
+  def decide(%QueueState{connectivity: {:offline, %DateTime{} = since}} = queue, now, grace) do
     if DateTime.diff(now, since, :second) >= grace do
-      {:fault, :download_client_unreachable, :warning, %{headline: "Download client unreachable"}}
+      {:fault, :download_client_unreachable, :warning,
+       %{headline: "Download client unreachable", detail: detail(queue, now)}}
     else
       :ok
     end
   end
 
   def decide(%QueueState{}, _now, _grace), do: :ok
+
+  # One line per configured client, torrent slot first, so the text is
+  # stable across polls: which client, at which address, in what state, and
+  # the cause of its last failed poll.
+  defp detail(%QueueState{clients: clients}, now) do
+    clients
+    |> Enum.sort_by(fn {protocol, _status} -> protocol end)
+    |> Enum.map_join("\n", fn {_protocol, status} -> line(status, now) end)
+  end
+
+  defp line(%ClientStatus{} = status, now),
+    do: "#{Upstream.label(status.upstream)} at #{status.url} — #{describe(status, now)}"
+
+  defp describe(%ClientStatus{connectivity: :live}, _now), do: "answering"
+  defp describe(%ClientStatus{connectivity: :auth_failed}, _now), do: "credentials rejected"
+
+  defp describe(%ClientStatus{connectivity: {:offline, since}} = status, now),
+    do:
+      "offline for #{Format.format_human_duration(DateTime.diff(now, since, :second))}" <> cause(status)
+
+  defp describe(%ClientStatus{connectivity: {:transient_failure, _since}} = status, _now),
+    do: "missed the last poll" <> cause(status)
+
+  defp describe(%ClientStatus{connectivity: _initializing}, _now), do: "not polled yet"
+
+  defp cause(%ClientStatus{last_error: error}) when is_binary(error), do: " (#{error})"
+  defp cause(%ClientStatus{}), do: ""
 end

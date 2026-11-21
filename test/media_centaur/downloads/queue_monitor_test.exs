@@ -286,8 +286,14 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
 
       assert_receive {:queue_state, %QueueState{} = state}, 1000
       assert {:transient_failure, %DateTime{}} = state.connectivity
-      assert state.client_connectivity[:torrent] == :live
-      assert {:transient_failure, _} = state.client_connectivity[:usenet]
+      assert state.clients[:torrent].connectivity == :live
+      assert {:transient_failure, _} = state.clients[:usenet].connectivity
+
+      # The failed client says why, in words the Status board can show.
+      assert state.clients[:usenet].last_error ==
+               "connection refused — nothing is listening at this address"
+
+      assert state.clients[:usenet].upstream == :sabnzbd
 
       # The healthy client's items are fresh; the failed client keeps
       # its last-known items rather than vanishing mid-outage.
@@ -302,7 +308,7 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
 
       QueueMonitor.poll_now()
       assert_receive {:queue_state, %QueueState{connectivity: :auth_failed} = state}, 1000
-      assert state.client_connectivity[:torrent] == :live
+      assert state.clients[:torrent].connectivity == :live
     end
 
     # The same rejection delivered as HTTP 403 with a plain-string body —
@@ -314,8 +320,8 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
 
       QueueMonitor.poll_now()
       assert_receive {:queue_state, %QueueState{connectivity: :auth_failed} = state}, 1000
-      assert state.client_connectivity[:usenet] == :auth_failed
-      assert state.client_connectivity[:torrent] == :live
+      assert state.clients[:usenet].connectivity == :auth_failed
+      assert state.clients[:torrent].connectivity == :live
     end
   end
 

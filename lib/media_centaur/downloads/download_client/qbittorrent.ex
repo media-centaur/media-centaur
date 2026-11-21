@@ -45,6 +45,9 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
 
+  @impl true
+  def upstream, do: :qbittorrent
+
   @doc """
   Fetches incremental queue state via `/api/v2/sync/maindata?rid=N`.
 
@@ -185,7 +188,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   # cookie when one is held.
   defp req(%ClientConfig{} = config) do
     base =
-      MediaCentaur.HttpClient.new(__MODULE__, upstream: :qbittorrent, base_url: config.url, retry: false)
+      MediaCentaur.HttpClient.new(__MODULE__, upstream: upstream(), base_url: config.url, retry: false)
 
     case :persistent_term.get({__MODULE__, :cookie}, nil) do
       nil -> base

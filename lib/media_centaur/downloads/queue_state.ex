@@ -16,6 +16,7 @@ defmodule MediaCentaur.Downloads.QueueState do
   """
 
   alias MediaCentaur.Downloads.ClientConfig
+  alias MediaCentaur.Downloads.ClientStatus
   alias MediaCentaur.Downloads.Connectivity
   alias MediaCentaur.Downloads.QueueItem
 
@@ -25,22 +26,23 @@ defmodule MediaCentaur.Downloads.QueueState do
   from SABnzbd's history, and the completed entry's `content_path` is
   what pursuit matching pins. `connectivity` is the merged worst-grade
   across clients (a true "something needs attention" signal for
-  existing consumers); `client_connectivity` carries the per-slot
-  grades so a healthy client isn't painted with the other's outage.
+  existing consumers); `clients` carries each slot's `ClientStatus` —
+  its own grade and last failure — so a healthy client isn't painted
+  with the other's outage and a fault can say which client failed and why.
   """
   @type t :: %__MODULE__{
           items: [QueueItem.t()],
           last_polled_at: DateTime.t() | nil,
           last_successful_poll_at: DateTime.t() | nil,
           connectivity: Connectivity.t(),
-          client_connectivity: %{ClientConfig.protocol() => Connectivity.t()}
+          clients: %{ClientConfig.protocol() => ClientStatus.t()}
         }
 
   defstruct items: [],
             last_polled_at: nil,
             last_successful_poll_at: nil,
             connectivity: :initializing,
-            client_connectivity: %{}
+            clients: %{}
 
   @doc """
   Whether an *absence* from `items` can be read as evidence.

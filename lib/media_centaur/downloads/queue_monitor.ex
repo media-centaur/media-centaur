@@ -23,7 +23,8 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
     through its grade, not by items vanishing mid-outage) while the
     healthy client's items stay fresh.
   - `QueueState.connectivity` is the worst grade across slots;
-    `QueueState.client_connectivity` carries the per-slot grades.
+    `QueueState.clients` carries each slot's `ClientStatus` (its grade
+    and the cause of its last failed poll).
 
   The poll cadence is shared: an `:auth_failed` grade on either slot
   backs the whole cycle off to the 30 s backoff — slightly staler data
@@ -92,6 +93,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Features
+  alias MediaCentaur.Downloads.ClientStatus
   alias MediaCentaur.Downloads.Connectivity
   alias MediaCentaur.Downloads.DownloadClient.Dispatcher
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
@@ -332,7 +334,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       last_polled_at: now,
       last_successful_poll_at: if(any_success?, do: now, else: state.queue.last_successful_poll_at),
       connectivity: merge_connectivity(clients),
-      client_connectivity: Map.new(clients, fn {protocol, client} -> {protocol, client.connectivity} end)
+      clients: Map.new(clients, fn {protocol, client} -> {protocol, client_status(client)} end)
     }
 
     store_and_broadcast(queue)
@@ -353,7 +355,8 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
            client
            | driver_state: result.driver_state,
              items: result.items,
-             connectivity: next
+             connectivity: next,
+             last_error: nil
          }, {result.movement?, result.summary}}
 
       {:error, reason, next_driver_state} ->
@@ -365,7 +368,12 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         next = Connectivity.poll_failed(client.connectivity, classify_error(reason), now)
         log_poll(client.connectivity, next, protocol, reason)
 
-        {%{client | driver_state: next_driver_state, connectivity: next}, nil}
+        {%{
+           client
+           | driver_state: next_driver_state,
+             connectivity: next,
+             last_error: Connectivity.describe_failure(reason)
+         }, nil}
     end
   end
 
@@ -407,14 +415,24 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
           config: nil,
           driver_state: nil,
           items: [],
-          connectivity: Connectivity.initial()
+          connectivity: Connectivity.initial(),
+          last_error: nil
         }
     end
   end
 
+  defp client_status(client) do
+    %ClientStatus{
+      upstream: client.module.upstream(),
+      url: client.config.url,
+      connectivity: client.connectivity,
+      last_error: client.last_error
+    }
+  end
+
   # Worst grade across slots — a true "needs attention" roll-up for
   # consumers that render one indicator. Per-slot truth lives in
-  # `client_connectivity`.
+  # `clients`.
   defp merge_connectivity(clients) when map_size(clients) == 0, do: :not_configured
 
   defp merge_connectivity(clients) do
@@ -433,7 +451,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       last_polled_at: DateTime.utc_now(),
       last_successful_poll_at: state.queue.last_successful_poll_at,
       connectivity: :not_configured,
-      client_connectivity: %{}
+      clients: %{}
     }
 
     store_and_broadcast(queue)

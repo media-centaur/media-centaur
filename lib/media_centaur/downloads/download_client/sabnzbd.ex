@@ -76,6 +76,9 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
   @history_limit 30
 
   @impl true
+  def upstream, do: :sabnzbd
+
+  @impl true
   def test_connection(%ClientConfig{} = config) do
     case get_api(config, mode: "queue", limit: 1) do
       {:ok, _body} -> :ok
@@ -154,7 +157,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   defp get_api(%ClientConfig{} = config, params) do
     client =
-      MediaCentaur.HttpClient.new(__MODULE__, upstream: :sabnzbd, base_url: config.url, retry: false)
+      MediaCentaur.HttpClient.new(__MODULE__, upstream: upstream(), base_url: config.url, retry: false)
 
     api_key = MediaCentaur.Secret.expose(config.api_key) || ""
     params = Keyword.merge([output: "json", apikey: api_key], params)

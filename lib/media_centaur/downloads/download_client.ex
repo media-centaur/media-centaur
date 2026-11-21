@@ -41,6 +41,12 @@ defmodule MediaCentaur.Downloads.DownloadClient do
   @typedoc "Opaque per-driver sync bookmark. `nil` means start fresh (full update)."
   @type driver_state :: term()
 
+  @doc """
+  The `MediaCentaur.HttpClient.Upstream` id the driver talks to — its traffic
+  label and the client's display name (`Upstream.label/1`).
+  """
+  @callback upstream() :: atom()
+
   @callback test_connection(ClientConfig.t()) :: :ok | {:error, term()}
 
   @doc """

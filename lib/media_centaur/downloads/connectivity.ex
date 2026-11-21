@@ -59,4 +59,30 @@ defmodule MediaCentaur.Downloads.Connectivity do
   def poll_failed({:transient_failure, since}, :unreachable, _now), do: {:offline, since}
   def poll_failed({:offline, since}, :unreachable, _now), do: {:offline, since}
   def poll_failed(_previous, :unreachable, now), do: {:transient_failure, now}
+
+  @doc """
+  A failed poll's cause in plain words, for the Status board's evidence
+  (`ClientStatus.last_error`). Takes the driver's raw `{:error, reason}` term.
+
+  A 404 is singled out: a client's API never answers it on its own paths, so
+  the address is reaching some other program — typically one that took the
+  port first.
+  """
+  @spec describe_failure(term()) :: String.t()
+  def describe_failure(%Req.TransportError{reason: :econnrefused}),
+    do: "connection refused — nothing is listening at this address"
+
+  def describe_failure(%Req.TransportError{reason: :timeout}), do: "timed out"
+  def describe_failure(%Req.TransportError{reason: :nxdomain}), do: "host name not found"
+  def describe_failure(%Req.TransportError{reason: reason}), do: "network error (#{inspect(reason)})"
+
+  def describe_failure({:http_error, 404, _body}),
+    do: "HTTP 404 — something else answers at this address; another program may be using the port"
+
+  def describe_failure({:http_error, status, _body}), do: "HTTP #{status}"
+  def describe_failure({:http_error, status}), do: "HTTP #{status}"
+  def describe_failure(:auth_failed), do: "credentials rejected"
+  def describe_failure({:auth_failed, _detail}), do: "credentials rejected"
+  def describe_failure({:api_error, message}) when is_binary(message), do: message
+  def describe_failure(reason), do: inspect(reason)
 end
