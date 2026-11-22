@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.19.4 — 2026-11-22
+
+### Fixed
+
+- **Restarting no longer closes an ongoing problem on the Status page.** If a download client, Prowlarr, TMDB or a relay was down when Media Centaur restarted, its issue used to close and then open again a few minutes later as a new one. The issue now stays open, keeping its count and when it started, until the service is seen working again. A single missed check no longer closes an open issue either.
+
 ## v2.19.3 — 2026-11-21
 
 ### Fixed
