@@ -163,6 +163,32 @@ defmodule MediaCentaur.DiagnosticsTest do
       assert output =~ "No frozen context"
     end
 
+    test "a subsystem incident shows its check's detail, the evidence for the condition" do
+      output =
+        Diagnostics.format_incident(
+          incident(
+            origin: :subsystem,
+            component: "acquisition",
+            kind: "download_client_unreachable",
+            display_title: "Download client unreachable",
+            detail:
+              "qBittorrent at http://127.0.0.1:8080 — offline for 12m (connection refused)\n" <>
+                "SABnzbd at http://127.0.0.1:8085 — answering"
+          )
+        )
+
+      assert output =~ "qBittorrent at http://127.0.0.1:8080 — offline for 12m (connection refused)"
+      assert output =~ "SABnzbd at http://127.0.0.1:8085 — answering"
+      assert output =~ "refreshed on every check"
+      refute output =~ "No frozen context"
+    end
+
+    test "a log incident without a snapshot never claims subsystem incidents take one" do
+      output = Diagnostics.format_incident(incident(first_context: nil, latest_context: nil))
+
+      refute output =~ "subsystem"
+    end
+
     test "surfaces the user's narrative for a :user incident" do
       output =
         Diagnostics.format_incident(

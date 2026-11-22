@@ -4,11 +4,15 @@ defmodule MediaCentaur.ErrorReports.Incident do
   packaged from and sent.
 
   An incident has one of three origins (`:log`, `:subsystem`, `:user`) and a
-  lifecycle (`:open → :acknowledged → :resolved`). In Phase 1 only `:log`
-  incidents exist: one per `fingerprint`, accumulating `count`/`last_seen` as
-  matching events recur. The `:subsystem`/`:user` origins, the frozen context
-  snapshots (`first_context`/`latest_context`), `scope`, and `user_description`
-  are provisioned now but populated in later phases.
+  lifecycle (`:open → :acknowledged → :resolved`). A `:log` incident is one
+  per `fingerprint`, accumulating `count`/`last_seen` as matching events
+  recur.
+
+  Evidence differs by origin. A `:log` incident freezes a context snapshot
+  (`first_context`, `ContextSnapshot`) when it opens; a `:user` report
+  carries the snapshot taken when it was filed, plus `user_description`. A
+  `:subsystem` incident has no snapshot: its evidence is `detail`, the
+  probe's account rewritten on every evaluator poll.
 
   Grouping for `:log` is by `fingerprint` (unique among non-null fingerprints);
   `:subsystem` faults group by `{component, kind}`; `:user` reports never group.

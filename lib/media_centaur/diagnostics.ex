@@ -107,9 +107,12 @@ defmodule MediaCentaur.Diagnostics do
   end
 
   @doc """
-  Prints the full forensic dump for one incident — header plus its frozen
-  context snapshot (lead-up logs, cross-subsystem vitals, the firing
-  subsystem's contributor data, and triggering ids).
+  Prints the full forensic dump for one incident — the header, then its
+  evidence. A `:log` or `:user` incident carries the context snapshot frozen
+  when it opened (lead-up logs, cross-subsystem vitals, the firing
+  subsystem's contributor data, and triggering ids). A `:subsystem` incident
+  carries no snapshot: its evidence is the check's `detail`, refreshed on
+  every evaluator poll.
 
   `ref` is `:latest` (the default), a full incident id, a short id prefix (as
   printed by `incidents/0`), or a fingerprint.
@@ -216,7 +219,7 @@ defmodule MediaCentaur.Diagnostics do
   @doc "Renders the full forensic dump for a single incident (pure)."
   @spec format_incident(Incident.t()) :: String.t()
   def format_incident(%Incident{} = incident) do
-    [incident_header(incident), incident_context_section(incident)]
+    [incident_header(incident), incident_evidence_section(incident)]
     |> Enum.reject(&(&1 == ""))
     |> Enum.join("\n")
   end
@@ -243,13 +246,22 @@ defmodule MediaCentaur.Diagnostics do
     lines |> Enum.reject(&(&1 == "")) |> Enum.join("\n")
   end
 
-  defp incident_context_section(%Incident{} = incident) do
+  defp incident_evidence_section(%Incident{origin: :subsystem, detail: detail})
+       when is_binary(detail) and detail != "" do
+    lines = detail |> String.split("\n") |> Enum.map_join("\n", &("    " <> &1))
+    "\n  Detail (refreshed on every check):\n" <> lines
+  end
+
+  defp incident_evidence_section(%Incident{origin: :subsystem}),
+    do: "\n  No detail reported by the check."
+
+  defp incident_evidence_section(%Incident{} = incident) do
     case incident.latest_context || incident.first_context do
       context when is_map(context) and map_size(context) > 0 ->
         "\n  Frozen context:\n" <> format_context(context)
 
       _ ->
-        "\n  No frozen context captured (snapshots populate on subsystem/user incidents)."
+        "\n  No frozen context captured (taken when a log-line or user-reported incident opens)."
     end
   end
 
