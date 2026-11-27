@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
 
-  alias MediaCentaurWeb.Components.Detail.{CastSelection, People}
+  alias MediaCentaurWeb.Components.Detail.{CastSelection, Credits}
   alias MediaCentaurWeb.Components.FilterField
 
   attr :entity, :map,
@@ -178,31 +178,15 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
     end)
   end
 
+  # A movie's Directed by / Written by line; a series' creators are not
+  # drawn here.
   defp movie_headline(%{entity: %{type: :movie}} = assigns) do
-    crew = Map.get(assigns.entity, :crew) || []
-
-    assigns =
-      assigns
-      |> assign(:directors, filter_crew(crew, ["Director"]))
-      |> assign(:writers, filter_crew(crew, ["Screenplay", "Writer", "Story"]))
-
     ~H"""
-    <div :if={@directors != [] or @writers != []} class="space-y-1.5 text-sm">
-      <p :if={@directors != []}>
-        <span class="text-base-content/60">Directed by</span>
-        <People.people people={@directors} />
-      </p>
-      <p :if={@writers != []}>
-        <span class="text-base-content/60">Written by</span>
-        <People.people people={@writers} />
-      </p>
-    </div>
+    <Credits.credits id="cast-credits" crew={Map.get(@entity, :crew) || []} />
     """
   end
 
   defp movie_headline(assigns), do: ~H""
-
-  defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1.job in jobs))
 
   @doc """
   The Cast view's filter input — a search pill filtering the grid by

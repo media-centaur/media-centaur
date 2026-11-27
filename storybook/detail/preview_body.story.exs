@@ -2,8 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PreviewBody do
   @moduledoc """
   The facts of a not-yet-owned title under the cinematic frame's lockup:
   metadata row with the media-type badge, overview, facet strip, top
-  cast. One body for the plan modal's movie confirm stage and the
-  Social page's title detail modal.
+  cast. The plan modal's movie confirm stage.
   """
 
   use PhoenixStorybook.Story, :component

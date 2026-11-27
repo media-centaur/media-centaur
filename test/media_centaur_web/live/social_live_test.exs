@@ -1804,9 +1804,11 @@ defmodule MediaCentaurWeb.SocialLiveTest do
       html = render_async(view, 1_000)
       assert html =~ "Every confirmation counts."
       # The preview's metadata row takes the hero's type line; no facet
-      # strip follows the overview (UIDR-043).
+      # strip follows the overview (UIDR-043) — the director is named in
+      # the body's credits line instead (UIDR-043, amended 2026-11-27).
       assert has_element?(view, "#detail-modal .badge", "Movie")
-      refute has_element?(view, "#detail-modal", "Director")
+      refute has_element?(view, "#detail-modal", "Genres")
+      assert has_element?(view, "#detail-modal [data-component='title-credits']", "A. Director")
       assert html =~ "sample-backdrop.jpg"
       assert html =~ "sample-logo.png"
       await_supervised_tasks()

@@ -5,7 +5,8 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   facets, top cast) the owned detail panel shows, built live from a full
   TMDB payload so a confirmation surface never drifts from what
   ingestion would record. Worn by the plan modal's movie confirm stage
-  and the Social page's title detail modal.
+  and the title detail modal for a title the library does not own, whose
+  body draws its credits and top cast from it.
 
   Built by `movie/3` and `tv/3` from raw TMDB payloads via `TMDB.Mapper`
   — the same derivation the import pipeline uses. Absent TMDB fields
@@ -28,7 +29,9 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   that diagnose an empty search.
 
   `facets` are `Detail.Facet` structs (rendered by `Detail.FacetStrip`),
-  `cast` are `Library.Person` structs (the library's cast shape), and the
+  `cast` and `crew` are `Library.Person` structs (the library's cast and
+  crew shape; a movie's crew is its directing crew, all the TMDB store
+  keeps, and a series' its creators), and the
   image fields are absolute TMDB CDN URLs — a not-yet-owned title has no
   local artwork, so the preview hotlinks TMDB rather than the
   `/media-images/` path the owned detail panel serves from.
@@ -57,6 +60,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
           metadata_items: [String.t()],
           facets: [Facet.t()],
           cast: [Person.t()],
+          crew: [Person.t()],
           in_library?: boolean()
         }
 
@@ -76,6 +80,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
             metadata_items: [],
             facets: [],
             cast: [],
+            crew: [],
             in_library?: false
 
   # The top-billed few — a compact confirmation strip, not the full
@@ -109,6 +114,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       metadata_items: movie_metadata_items(attrs),
       facets: DetailLogic.facets_for(:movie, attrs),
       cast: top_cast(attrs.cast),
+      crew: crew(attrs.crew),
       in_library?: in_library?
     }
   end
@@ -137,6 +143,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       metadata_items: tv_metadata_items(attrs),
       facets: DetailLogic.facets_for(:tv_series, attrs),
       cast: top_cast(attrs.cast),
+      crew: crew(attrs.crew),
       in_library?: in_library?
     }
   end
@@ -183,6 +190,22 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       }
     end)
   end
+
+  defp crew(crew) when is_list(crew) do
+    Enum.map(crew, fn person ->
+      %Person{
+        name: person["name"],
+        job: person["job"],
+        department: person["department"],
+        profile_path: person["profile_path"],
+        tmdb_person_id: person["tmdb_person_id"]
+      }
+    end)
+  end
+
+  @doc "Whether the preview names anyone behind the title — a cast member or a crew member."
+  @spec people?(t()) :: boolean()
+  def people?(%__MODULE__{cast: cast, crew: crew}), do: cast != [] or crew != []
 
   defp presence(value) when is_binary(value) and value != "", do: value
   defp presence(_value), do: nil

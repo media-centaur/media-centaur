@@ -82,6 +82,8 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
 
     assert [%Person{name: "Actor One", character: "The Narrator"}, %Person{name: "Actor Two"}] =
              preview.cast
+
+    assert [%Person{name: "Jane Director", job: "Director"}] = preview.crew
   end
 
   test "movie/3 carries the canonical release year for the download query" do

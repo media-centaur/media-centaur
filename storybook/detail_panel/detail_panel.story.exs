@@ -470,7 +470,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :dressed,
         description:
           "The live TMDB preview has landed: tagline in the lockup, the preview's " <>
-            "metadata row and overview above the action row. Backdrop and logo are " <>
+            "metadata row and overview above the action row, the director and top cast " <>
+            "leading the body above the tracking card. Backdrop and logo are " <>
             "hotlinked from TMDB in the app; nil here pins the frame's placeholder.",
         attributes: %{detail: unowned(movie(), %{preview: preview(movie())})}
       },
@@ -912,6 +913,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         %Person{name: "Actor One", character: "The Drifter", order: 0},
         %Person{name: "Actor Two", character: "Lighthouse Keeper", order: 1}
       ],
+      crew: [%Person{name: "Jane Director", job: "Director", tmdb_person_id: 7}],
       in_library?: false
     }
   end

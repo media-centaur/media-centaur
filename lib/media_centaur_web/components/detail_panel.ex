@@ -12,8 +12,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   progress hairline for an owned title (UIDR-024), the metadata row, the
   action row and the prose; the collection rail (UIDR-023); and the
   scrolling body — the content list, Cast or Manage for an owned title;
-  for a title the library does not hold, the tracking card when it has
-  something to say (UIDR-042). An owned title carries no card: its
+  for a title the library does not hold, its credits and top cast, then
+  the tracking card when it has something to say (UIDR-042). An owned title carries no card: its
   modal is for watching, and its tracking is the Watchlist page's.
 
   ## The section header is not pinned anywhere
@@ -38,7 +38,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   when it lands: the overview and metadata from the preview until then
   from the snapshot, the type and year. No facet strip on either: the
   main view is for deciding to press Play or Download, not for reference
-  lookup.
+  lookup. Who made an unowned title and who is in it are deciding facts,
+  so its body leads with them once the preview lands — the credits line
+  (`Detail.Credits`) and the top cast (`Detail.CastStrip`) — above the
+  tracking card; an owned title keeps them in its Cast view.
 
   ## The action row
 
@@ -84,8 +87,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.CastPanel
+  alias MediaCentaurWeb.Components.Detail.CastStrip
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.CollectionRail
+  alias MediaCentaurWeb.Components.Detail.Credits
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.FinishPrompt
   alias MediaCentaurWeb.Components.Detail.Logic
@@ -373,6 +378,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <:body :if={@body?}>
         <%= case {@library, @view} do %>
           <% {nil, _view} -> %>
+            <.people_behind preview={@detail.preview} />
           <% {_library, :cast} -> %>
             <div data-nav-zone="detail_cast">
               <CastPanel.cast_panel
@@ -829,12 +835,31 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
+  attr :preview, :any, required: true, doc: "the unowned title's `TitlePreview`, nil until it lands"
+
+  # Who made it and who is in it, for a title the library does not own:
+  # the deciding facts before a bookmark or a Download. Nothing until the
+  # live preview lands.
+  defp people_behind(%{preview: %TitlePreview{} = preview} = assigns) do
+    assigns = assign(assigns, :people?, TitlePreview.people?(preview))
+
+    ~H"""
+    <div :if={@people?} class="space-y-4 pt-2 pb-4" data-component="people-behind">
+      <Credits.credits id="detail-credits" crew={@preview.crew} />
+      <CastStrip.cast_strip :if={@preview.cast != []} id="detail-cast" cast={@preview.cast} />
+    </div>
+    """
+  end
+
+  defp people_behind(assigns), do: ~H""
+
   # --- Rules ---
 
   @doc """
   Whether the detail document scrolls — an owned title's seasons,
   entity-level extras, Manage or Cast sub-views, or an unowned title's
-  tracking card (`Detail.Logic.tracking_card?/1`).
+  tracking card (`Detail.Logic.tracking_card?/1`), which its credits and
+  top cast join once the preview lands.
 
   Drives the frame's `full` attr, which tags scrollable documents with
   `.modal-panel--full`: those panels get a constant backdrop box and a

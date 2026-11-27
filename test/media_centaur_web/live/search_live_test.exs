@@ -410,6 +410,74 @@ defmodule MediaCentaurWeb.SearchLiveTest do
     end
   end
 
+  describe "a title the library does not own: the people behind it" do
+    setup do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.mark_ready!()
+      :ok
+    end
+
+    test "a movie's detail names its director and shows its top cast", %{conn: conn} do
+      create_title_record(%{
+        tmdb_id: 901,
+        media_type: :movie,
+        payload:
+          TmdbStubs.movie_detail(%{
+            "id" => 901,
+            "title" => "Movie A",
+            "credits" => %{
+              "cast" => [
+                %{"id" => 11, "name" => "Actor One", "character" => "Lead", "order" => 0},
+                %{"id" => 12, "name" => "Actor Two", "character" => "Friend", "order" => 1}
+              ],
+              "crew" => [
+                %{"id" => 21, "department" => "Directing", "job" => "Director", "name" => "A. Director"}
+              ]
+            }
+          })
+      })
+
+      {:ok, view, _html} = live(conn, "/search?title=movie-901")
+      render_async(view, 2_000)
+
+      assert has_element?(view, "[data-component='title-credits']", "Directed by")
+      assert has_element?(view, "[data-component='title-credits']", "A. Director")
+      assert has_element?(view, "[data-component='cast-strip']", "Top cast")
+      assert has_element?(view, "[data-component='cast-strip']", "Actor One")
+      assert has_element?(view, "[data-component='cast-strip']", "Lead")
+    end
+
+    test "a series' detail names its creators and shows its top cast", %{conn: conn} do
+      create_title_record(%{
+        tmdb_id: 902,
+        media_type: :tv_series,
+        payload:
+          TmdbStubs.tv_detail(%{
+            "id" => 902,
+            "name" => "Sample Show",
+            "created_by" => [%{"id" => 31, "name" => "A. Creator"}],
+            "aggregate_credits" => %{
+              "cast" => [
+                %{
+                  "id" => 13,
+                  "name" => "Actor Three",
+                  "roles" => [%{"character" => "Captain"}],
+                  "order" => 0
+                }
+              ]
+            }
+          })
+      })
+
+      {:ok, view, _html} = live(conn, "/search?title=tv_series-902")
+      render_async(view, 2_000)
+
+      assert has_element?(view, "[data-component='title-credits']", "Created by")
+      assert has_element?(view, "[data-component='title-credits']", "A. Creator")
+      assert has_element?(view, "[data-component='cast-strip']", "Actor Three")
+    end
+  end
+
   describe "media search (UIDR-014, amended)" do
     setup do
       TmdbStubs.setup_tmdb_client()
