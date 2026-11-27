@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v2.20.0 — 2026-11-27
+
+### Improved
+
+- **A title you don't have shows who made it and who is in it.** Open a title from Home's Coming Up, a Search shelf, your Watchlist or a friend's review, and the details now show the director (for a series, its creators) and a strip of the top-billed cast with their photos and characters, under the synopsis. A title in your library still keeps its full cast behind the Cast button.
+
+### Fixed
+
+- **A security fix in the database layer.** An update to the component that manages database connections closes a reported weakness.
+
 ## v2.19.4 — 2026-11-22
 
 ### Fixed
